@@ -5,6 +5,7 @@ class RealisticHungaryMap {
         this.playerLat = 47.4979; // Budapest szélességi foka
         this.playerLng = 19.0402; // Budapest hosszúsági foka
         this.hungaryBorderLayer = null;
+        this.isHungaryBorderLoaded = false; // Új flag a betöltés követésére
 
         this.gridCellSize = 0.05; // Pl. 0.05 fok ~ 5.5 km szélességben az Egyenlítőnél
 
@@ -15,6 +16,7 @@ class RealisticHungaryMap {
         this.visitedGridCellsLayer = L.layerGroup();
         this.drawnGridCells = {};
         this.poiGridCellsLayer = L.layerGroup(); // Rétegcsoport a POI cellákhoz
+        this.drawnPoiCells = {}; // POI cellák követése
 
         // Játékos ikon definíciója
         this.playerIcon = L.icon({
@@ -57,14 +59,21 @@ class RealisticHungaryMap {
                 name: "Pécs",
                 lat: 46.07,
                 lng: 18.23,
-                imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/P%C3%A9cs_-_Sz%C3%A9chenyi_t%C3%A9r_a_dzs%C3%Aámival.jpg/640px-P%C3%A9cs_-_Sz%C3%A9chenyi_t%C3%A9r_a_dzs%C3%A1mival.jpg",
+                imageUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/P%C3%A9cs_-_Sz%C3%A9chenyi_t%C3%A9r_a_dzs%C3%A1mival.jpg/640px-P%C3%A9cs_-_Sz%C3%A9chenyi_t%C3%A9r_a_dzs%C3%A1mival.jpg",
                 description: "Baranya vármegye székhelye, gazdag történelmi és kulturális örökséggel."
             }
         ];
 
         this.initializeMap();
-        // A loadGeoJsonData most már Promise-t ad vissza, ezért meg kell várni
         this.loadGeoJsonData().then(() => {
+            this.setupControls();
+            this.drawInitialPoiCells();
+            this.isHungaryBorderLoaded = true;
+            console.log("Hungary border successfully loaded!");
+        }).catch(error => {
+            console.error("Failed to load Hungary border:", error);
+            this.isHungaryBorderLoaded = false;
+            // Akkor is engedélyezd a kontrolokat ha a GeoJSON betöltés sikertelen
             this.setupControls();
             this.drawInitialPoiCells();
         });
@@ -85,20 +94,24 @@ class RealisticHungaryMap {
         this.poiGridCellsLayer.addTo(this.map);
     }
 
-    // Módosított loadGeoJsonData metódus
     async loadGeoJsonData() {
         try {
-            const response = await fetch('gadm41_HUN_0.json'); // Feltételezzük, hogy a fájl neve hungary_border.geojson
+            console.log("Attempting to load GeoJSON...");
+            const response = await fetch('gadm41_HUN_0.json');
+            console.log("Response status:", response.status);
+            
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
+            
             const hungaryBorderGeoJson = await response.json();
+            console.log("GeoJSON loaded successfully");
 
             this.hungaryBorderLayer = L.geoJson(hungaryBorderGeoJson, {
                 style: {
-                    color: '#8B4513', // Barna szín
+                    color: '#8B4513',
                     weight: 2,
-                    fillColor: '#90EE90', // Világoszöld kitöltés
+                    fillColor: '#90EE90',
                     fillOpacity: 0.5
                 }
             }).addTo(this.map);
@@ -110,26 +123,13 @@ class RealisticHungaryMap {
                 "properties": { "name": "Magyarország Határa" },
                 "geometry": {
                     "type": "Polygon",
-                    "coordinates": [
-                        [
-                            [16.960, 48.585], [17.113, 48.580], [17.800, 48.570], [18.500, 48.560],
-                            [19.200, 48.550], [19.900, 48.540], [20.600, 48.530], [21.300, 48.520],
-                            [22.000, 48.510], [22.906, 48.490],
-                            [22.900, 48.400], [22.850, 48.200], [22.800, 48.000], [22.750, 47.800],
-                            [22.700, 47.600], [22.650, 47.400], [22.600, 47.200], [22.550, 47.000],
-                            [22.500, 46.800], [22.450, 46.600], [22.400, 46.400], [22.200, 46.200],
-                            [21.800, 46.100], [21.400, 46.050], [21.000, 46.000],
-                            [20.600, 45.950], [20.200, 45.900], [19.800, 45.850], [19.400, 45.800],
-                            [19.000, 45.750], [18.600, 45.737], [18.200, 45.740], [17.800, 45.750],
-                            [17.400, 45.760], [17.000, 45.770], [16.600, 45.780],
-                            [16.400, 45.900], [16.300, 46.100], [16.200, 46.300], [16.150, 46.500],
-                            [16.120, 46.700], [16.113, 46.900], [16.120, 47.100], [16.150, 47.300],
-                            [16.200, 47.500], [16.300, 47.700], [16.500, 47.800], [16.700, 47.850],
-                            [16.800, 48.000], [16.850, 48.200], [16.900, 48.400], [16.960, 48.585]
-                        ]
-                    ]
+                    "coordinates": [[
+                        [16.1, 46.1], [16.2, 47.7], [16.8, 48.6], [22.9, 48.6],
+                        [22.9, 45.7], [16.1, 45.7], [16.1, 46.1]
+                    ]]
                 }
             };
+            
             this.hungaryBorderLayer = L.geoJson(fallbackGeoJson, {
                 style: {
                     color: '#8B4513',
@@ -141,28 +141,64 @@ class RealisticHungaryMap {
         }
     }
 
-    isPointInHungary(lat, lng) {
-        if (!this.hungaryBorderLayer) return false;
-
-        const point = L.latLng(lat, lng);
-        // A GeoJSON réteg lehet FeatureCollection, amiben több Feature van.
-        // Meg kell találni a tényleges poligon réteget.
-        let polygonLayer = null;
-        this.hungaryBorderLayer.eachLayer(function(layer) {
-            if (layer instanceof L.Polygon) {
-                polygonLayer = layer;
-            }
-        });
-
-        if (!polygonLayer) {
-            console.warn("Nem található poligon réteg a határ GeoJSON-ban.");
-            return false; // Ha nincs poligon, nem tudjuk ellenőrizni
-        }
-
-        // A Leaflet beépített metódusa a pont-poligon ellenőrzésre
-        return polygonLayer.getBounds().contains(point) && polygonLayer.getLatLngs()[0].some(ring => L.Polygon.prototype._containsPoint.call({_latlngs: [ring]}, point));
+    // Egyszerű határ ellenőrzés koordinátákkal
+    isPointInHungarySimple(lat, lng) {
+        // Magyarország hozzávetőleges határai
+        const hungaryBounds = {
+            north: 48.6,
+            south: 45.7,
+            east: 22.9,
+            west: 16.1
+        };
+        
+        return lat >= hungaryBounds.south && 
+               lat <= hungaryBounds.north && 
+               lng >= hungaryBounds.west && 
+               lng <= hungaryBounds.east;
     }
 
+    // Pontosabb point-in-polygon algoritmus
+    isPointInPolygon(point, polygon) {
+        const x = point.lng;
+        const y = point.lat;
+        let inside = false;
+
+        // Polygon koordináták lekérése
+        const coords = polygon.getLatLngs()[0]; // Első gyűrű (külső határ)
+        
+        for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
+            const xi = coords[i].lng, yi = coords[i].lat;
+            const xj = coords[j].lng, yj = coords[j].lat;
+            
+            if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+                inside = !inside;
+            }
+        }
+        return inside;
+    }
+
+    isPointInHungary(lat, lng) {
+        // Ha még nincs betöltve a határ, használd az egyszerű ellenőrzést
+        if (!this.isHungaryBorderLoaded || !this.hungaryBorderLayer) {
+            console.warn("Hungary border not loaded yet, using simple bounds check");
+            return this.isPointInHungarySimple(lat, lng);
+        }
+
+        const point = { lat: lat, lng: lng };
+        const layers = this.hungaryBorderLayer.getLayers();
+        
+        if (layers.length === 0) {
+            console.warn("No layers found in hungaryBorderLayer, using simple bounds check");
+            return this.isPointInHungarySimple(lat, lng);
+        }
+
+        return layers.some(layer => {
+            if (layer instanceof L.Polygon || layer instanceof L.MultiPolygon) {
+                return this.isPointInPolygon(point, layer);
+            }
+            return false;
+        });
+    }
 
     getPlayerGridCell(lat, lng) {
         const cellLat = Math.floor(lat / this.gridCellSize) * this.gridCellSize;
@@ -202,7 +238,6 @@ class RealisticHungaryMap {
     }
 
     drawInitialPoiCells() {
-        this.drawnPoiCells = {};
         for (const poi of this.pointsOfInterest) {
             const poiCell = this.getPlayerGridCell(poi.lat, poi.lng);
             this.drawGridCell(poiCell.id, poiCell.lat, poiCell.lng, true);
@@ -262,18 +297,26 @@ class RealisticHungaryMap {
         const newLat = this.playerLat + deltaLat;
         const newLng = this.playerLng + deltaLng;
 
-        if (this.isPointInHungary(newLat, newLng)) {
+        console.log(`Próbálkozás mozgással: ${newLat.toFixed(4)}, ${newLng.toFixed(4)}`);
+        
+        const isInHungary = this.isPointInHungary(newLat, newLng);
+        console.log(`Pont Magyarországon belül van-e: ${isInHungary}`);
+
+        if (isInHungary) {
             this.playerLat = newLat;
             this.playerLng = newLng;
             this.playerMarker.setLatLng([this.playerLat, this.playerLng]);
             this.map.panTo([this.playerLat, this.playerLng]);
-
             this.checkPointsOfInterest();
+            console.log("Sikeres mozgás!");
         } else {
-            // Opcionális: visszajelzés, ha nem lehet kimenni a határon
             console.log("Nem léphetsz ki Magyarország területéről!");
+            // Opcionális: vizuális visszajelzés
+            this.playerMarker.bindPopup("Nem léphetsz ki Magyarország területéről!").openPopup();
+            setTimeout(() => {
+                this.playerMarker.bindPopup("Játékos pozíciója").openPopup();
+            }, 2000);
         }
-        this.playerMarker.setPopupContent("Játékos pozíciója").openPopup();
     }
 
     setupControls() {
