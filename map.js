@@ -5,9 +5,9 @@ class RealisticHungaryMap {
         this.playerLat = 47.4979; // Budapest szélességi foka
         this.playerLng = 19.0402; // Budapest hosszúsági foka
         this.hungaryBorderLayer = null;
-        this.isHungaryBorderLoaded = false; // Új flag a betöltés követésére
+        this.isHungaryBorderLoaded = false;
 
-        this.gridCellSize = 0.05; // Pl. 0.05 fok ~ 5.5 km szélességben az Egyenlítőnél
+        this.gridCellSize = 0.05;
 
         this.visitedPoiCells = {};
         this.activePopup = null;
@@ -15,15 +15,15 @@ class RealisticHungaryMap {
 
         this.visitedGridCellsLayer = L.layerGroup();
         this.drawnGridCells = {};
-        this.poiGridCellsLayer = L.layerGroup(); // Rétegcsoport a POI cellákhoz
-        this.drawnPoiCells = {}; // POI cellák követése
+        this.poiGridCellsLayer = L.layerGroup();
+        this.drawnPoiCells = {};
 
         // Játékos ikon definíciója
         this.playerIcon = L.icon({
-            iconUrl: 'player_walk.gif', // Az animált GIF elérési útja
-            iconSize: [32, 32],       // Az ikon mérete (szélesség, magasság)
-            iconAnchor: [16, 32],     // Az ikon "horgonypontja" (az ikon alja középen)
-            popupAnchor: [0, -32]     // A popup pozíciója az ikonhoz képest
+            iconUrl: 'player_walk.gif',
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+            popupAnchor: [0, -32]
         });
 
         this.pointsOfInterest = [
@@ -73,7 +73,6 @@ class RealisticHungaryMap {
         }).catch(error => {
             console.error("Failed to load Hungary border:", error);
             this.isHungaryBorderLoaded = false;
-            // Akkor is engedélyezd a kontrolokat ha a GeoJSON betöltés sikertelen
             this.setupControls();
             this.drawInitialPoiCells();
         });
@@ -117,15 +116,16 @@ class RealisticHungaryMap {
             }).addTo(this.map);
         } catch (error) {
             console.error("Hiba a GeoJSON adat betöltésekor:", error);
-            // Fallback, ha a fájl nem tölthető be, használja az egyszerűsített határt
+            console.log("Using fallback border...");
+            
+            // Egyszerűsített fallback határ
             const fallbackGeoJson = {
                 "type": "Feature",
                 "properties": { "name": "Magyarország Határa" },
                 "geometry": {
                     "type": "Polygon",
                     "coordinates": [[
-                        [16.1, 46.1], [16.2, 47.7], [16.8, 48.6], [22.9, 48.6],
-                        [22.9, 45.7], [16.1, 45.7], [16.1, 46.1]
+                        [16.1, 45.7], [16.1, 48.6], [22.9, 48.6], [22.9, 45.7], [16.1, 45.7]
                     ]]
                 }
             };
@@ -138,66 +138,27 @@ class RealisticHungaryMap {
                     fillOpacity: 0.5
                 }
             }).addTo(this.map);
-        }
-    }
-
-    // Egyszerű határ ellenőrzés koordinátákkal
-    isPointInHungarySimple(lat, lng) {
-        // Magyarország hozzávetőleges határai
-        const hungaryBounds = {
-            north: 48.6,
-            south: 45.7,
-            east: 22.9,
-            west: 16.1
-        };
-        
-        return lat >= hungaryBounds.south && 
-               lat <= hungaryBounds.north && 
-               lng >= hungaryBounds.west && 
-               lng <= hungaryBounds.east;
-    }
-
-    // Pontosabb point-in-polygon algoritmus
-    isPointInPolygon(point, polygon) {
-        const x = point.lng;
-        const y = point.lat;
-        let inside = false;
-
-        // Polygon koordináták lekérése
-        const coords = polygon.getLatLngs()[0]; // Első gyűrű (külső határ)
-        
-        for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
-            const xi = coords[i].lng, yi = coords[i].lat;
-            const xj = coords[j].lng, yj = coords[j].lat;
             
-            if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
-                inside = !inside;
-            }
+            console.log("Fallback border created");
         }
-        return inside;
     }
 
+    // ÁTMENETILEG EGYSZERŰSÍTETT VERZIÓ - CSAK TESZTELÉSHEZ
     isPointInHungary(lat, lng) {
-        // Ha még nincs betöltve a határ, használd az egyszerű ellenőrzést
-        if (!this.isHungaryBorderLoaded || !this.hungaryBorderLayer) {
-            console.warn("Hungary border not loaded yet, using simple bounds check");
-            return this.isPointInHungarySimple(lat, lng);
-        }
-
-        const point = { lat: lat, lng: lng };
-        const layers = this.hungaryBorderLayer.getLayers();
+        console.log(`=== HATÁR ELLENŐRZÉS ===`);
+        console.log(`Ellenőrzött pont: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+        console.log(`Border loaded: ${this.isHungaryBorderLoaded}`);
+        console.log(`Border layer exists: ${!!this.hungaryBorderLayer}`);
         
-        if (layers.length === 0) {
-            console.warn("No layers found in hungaryBorderLayer, using simple bounds check");
-            return this.isPointInHungarySimple(lat, lng);
-        }
-
-        return layers.some(layer => {
-            if (layer instanceof L.Polygon || layer instanceof L.MultiPolygon) {
-                return this.isPointInPolygon(point, layer);
-            }
+        // ÁTMENETILEG MINDIG ENGEDÉLYEZD A MOZGÁST
+        // Csak a budapesti régióban tiltsd le
+        if (lat < 45.0 || lat > 49.0 || lng < 15.0 || lng > 24.0) {
+            console.log("Túl messze Magyarországtól - tiltva");
             return false;
-        });
+        }
+        
+        console.log("Mozgás engedélyezve");
+        return true;
     }
 
     getPlayerGridCell(lat, lng) {
@@ -297,10 +258,13 @@ class RealisticHungaryMap {
         const newLat = this.playerLat + deltaLat;
         const newLng = this.playerLng + deltaLng;
 
-        console.log(`Próbálkozás mozgással: ${newLat.toFixed(4)}, ${newLng.toFixed(4)}`);
+        console.log(`\n=== MOZGÁS KÍSÉRLET ===`);
+        console.log(`Jelenlegi pozíció: ${this.playerLat.toFixed(4)}, ${this.playerLng.toFixed(4)}`);
+        console.log(`Új pozíció: ${newLat.toFixed(4)}, ${newLng.toFixed(4)}`);
+        console.log(`Delta: ${deltaLat.toFixed(6)}, ${deltaLng.toFixed(6)}`);
         
         const isInHungary = this.isPointInHungary(newLat, newLng);
-        console.log(`Pont Magyarországon belül van-e: ${isInHungary}`);
+        console.log(`Eredmény: ${isInHungary}`);
 
         if (isInHungary) {
             this.playerLat = newLat;
@@ -308,22 +272,22 @@ class RealisticHungaryMap {
             this.playerMarker.setLatLng([this.playerLat, this.playerLng]);
             this.map.panTo([this.playerLat, this.playerLng]);
             this.checkPointsOfInterest();
-            console.log("Sikeres mozgás!");
+            console.log("✅ Sikeres mozgás!");
         } else {
-            console.log("Nem léphetsz ki Magyarország területéről!");
-            // Opcionális: vizuális visszajelzés
-            this.playerMarker.bindPopup("Nem léphetsz ki Magyarország területéről!").openPopup();
-            setTimeout(() => {
-                this.playerMarker.bindPopup("Játékos pozíciója").openPopup();
-            }, 2000);
+            console.log("❌ Nem léphetsz ki Magyarország területéről!");
         }
+        
+        this.playerMarker.setPopupContent("Játékos pozíciója").openPopup();
     }
 
     setupControls() {
+        console.log("Setting up controls...");
         document.addEventListener('keydown', (e) => {
             const baseMoveAmount = 0.01; 
             const currentZoom = this.map.getZoom();
             const moveAmount = baseMoveAmount / Math.pow(2, currentZoom - 8);
+
+            console.log(`Key pressed: ${e.key}, Move amount: ${moveAmount.toFixed(6)}`);
 
             switch(e.key.toLowerCase()) {
                 case 'w':
@@ -344,9 +308,11 @@ class RealisticHungaryMap {
                     break;
             }
         });
+        console.log("Controls set up successfully!");
     }
 }
 
 window.addEventListener('load', () => {
+    console.log("Loading RealisticHungaryMap...");
     new RealisticHungaryMap();
 });
