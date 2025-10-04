@@ -9,11 +9,15 @@ class Lotus3DRacing {
         this.minimap = null;
         this.minimapVisible = true;
         
-        // Pálya adatok a térképhez
+        // Pálya adatok
         this.trackData = {
             segments: [],
-            totalLength: 1000,
-            width: 20
+            totalLength: 2000,
+            width: 20,
+            buildings: [],
+            landmarks: [],
+            trees: [],
+            streetLights: []
         };
         
         // Játék állapot
@@ -32,7 +36,8 @@ class Lotus3DRacing {
             playerPosition: 1,
             gear: 1,
             cameraMode: 0,
-            distanceTraveled: 0
+            distanceTraveled: 0,
+            currentSegment: 0
         };
         
         // Irányítás
@@ -47,7 +52,7 @@ class Lotus3DRacing {
         this.createScene();
         this.createLighting();
         this.createGT86Car();
-        this.createRoad();
+        this.generateCityTrack();
         this.createOpponents();
         this.createEnvironment();
         this.setupCamera();
@@ -59,15 +64,472 @@ class Lotus3DRacing {
         this.animate();
     }
     
+    // Városi pálya generátor
+    generateCityTrack() {
+        console.log('Városi pálya generálása...');
+        
+        // Pálya pontok definiálása (érdekes városi útvonal)
+        const trackPoints = [
+            // Kezdő egyenes
+            { x: 0, z: 0, type: 'straight' },
+            { x: 0, z: -100, type: 'straight' },
+            
+            // Jobb kanyar (városközpont)
+            { x: 20, z: -150, type: 'right_turn' },
+            { x: 50, z: -180, type: 'right_turn' },
+            { x: 80, z: -200, type: 'right_turn' },
+            
+            // Egyenes szakasz (főutca)
+            { x: 150, z: -200, type: 'straight' },
+            { x: 250, z: -200, type: 'straight' },
+            
+            // Bal kanyar (park mellett)
+            { x: 280, z: -170, type: 'left_turn' },
+            { x: 300, z: -130, type: 'left_turn' },
+            { x: 310, z: -80, type: 'left_turn' },
+            
+            // Hosszú egyenes (külváros)
+            { x: 310, z: 0, type: 'straight' },
+            { x: 310, z: 100, type: 'straight' },
+            { x: 310, z: 200, type: 'straight' },
+            
+            // U-kanyar (fordulópont)
+            { x: 280, z: 230, type: 'u_turn' },
+            { x: 230, z: 250, type: 'u_turn' },
+            { x: 180, z: 230, type: 'u_turn' },
+            { x: 150, z: 200, type: 'u_turn' },
+            
+            // Visszaút
+            { x: 150, z: 100, type: 'straight' },
+            { x: 150, z: 0, type: 'straight' },
+            { x: 150, z: -100, type: 'straight' },
+            
+            // Bal kanyar vissza a starthoz
+            { x: 120, z: -130, type: 'left_turn' },
+            { x: 80, z: -150, type: 'left_turn' },
+            { x: 40, z: -130, type: 'left_turn' },
+            { x: 20, z: -100, type: 'left_turn' },
+            { x: 0, z: -50, type: 'left_turn' },
+            { x: 0, z: 0, type: 'straight' }
+        ];
+        
+        // Pálya szegmensek létrehozása
+        this.createTrackSegments(trackPoints);
+        
+        // Városi környezet létrehozása
+        this.generateCityEnvironment(trackPoints);
+        
+        console.log('Pálya generálás befejezve:', this.trackData.segments.length, 'szegmens');
+    }
+    
+    createTrackSegments(trackPoints) {
+        const roadWidth = 20;
+        const segmentLength = 8;
+        
+        for (let i = 0; i < trackPoints.length - 1; i++) {
+            const start = trackPoints[i];
+            const end = trackPoints[i + 1];
+            
+            // Szegmensek interpolálása
+            const steps = Math.ceil(this.distance(start, end) / segmentLength);
+            
+            for (let step = 0; step <= steps; step++) {
+                const t = step / steps;
+                const x = start.x + (end.x - start.x) * t;
+                const z = start.z + (end.z - start.z) * t;
+                
+                // Szegmens adatok tárolása
+                this.trackData.segments.push({
+                    x: x,
+                    z: z,
+                    type: start.type,
+                    angle: Math.atan2(end.x - start.x, end.z - start.z)
+                });
+                
+                // Út szegmens létrehozása
+                const roadGeometry = new THREE.PlaneGeometry(roadWidth, segmentLength);
+                const roadMaterial = new THREE.MeshLambertMaterial({ 
+                    color: this.trackData.segments.length % 2 === 0 ? 0x444444 : 0x555555 
+                });
+                const roadSegment = new THREE.Mesh(roadGeometry, roadMaterial);
+                roadSegment.rotation.x = -Math.PI / 2;
+                roadSegment.position.set(x, 0, z);
+                roadSegment.receiveShadow = true;
+                this.scene.add(roadSegment);
+                this.road.push(roadSegment);
+                
+                // Útburkolat jelzések
+                this.createRoadMarkings(x, z, roadWidth, segmentLength, this.trackData.segments.length);
+            }
+        }
+    }
+    
+    createRoadMarkings(x, z, roadWidth, segmentLength, segmentIndex) {
+        // Középső vonal
+        if (segmentIndex % 4 < 2) {
+            const lineGeometry = new THREE.PlaneGeometry(0.5, segmentLength * 0.8);
+            const lineMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            const line = new THREE.Mesh(lineGeometry, lineMaterial);
+            line.rotation.x = -Math.PI / 2;
+            line.position.set(x, 0.01, z);
+            this.scene.add(line);
+        }
+        
+        // Szélső vonalak
+        [-roadWidth/2, roadWidth/2].forEach(offset => {
+            const borderGeometry = new THREE.PlaneGeometry(1, segmentLength);
+            const borderMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            const border = new THREE.Mesh(borderGeometry, borderMaterial);
+            border.rotation.x = -Math.PI / 2;
+            border.position.set(x + offset, 0.01, z);
+            this.scene.add(border);
+        });
+        
+        // Járda
+        [-roadWidth/2 - 3, roadWidth/2 + 3].forEach(offset => {
+            const sidewalkGeometry = new THREE.PlaneGeometry(4, segmentLength);
+            const sidewalkMaterial = new THREE.MeshLambertMaterial({ color: 0x888888 });
+            const sidewalk = new THREE.Mesh(sidewalkGeometry, sidewalkMaterial);
+            sidewalk.rotation.x = -Math.PI / 2;
+            sidewalk.position.set(x + offset, 0.02, z);
+            sidewalk.receiveShadow = true;
+            this.scene.add(sidewalk);
+        });
+    }
+    
+    generateCityEnvironment(trackPoints) {
+        console.log('Városi környezet generálása...');
+        
+        // Épületek generálása
+        this.generateBuildings(trackPoints);
+        
+        // Fák és parkok
+        this.generateVegetation(trackPoints);
+        
+        // Utcai lámpák
+        this.generateStreetLights(trackPoints);
+        
+        // Forgalmi táblák és jelzőlámpák
+        this.generateTrafficElements(trackPoints);
+    }
+    
+    generateBuildings(trackPoints) {
+        const buildingTypes = [
+            { name: 'Lakóház', height: 8, width: 6, depth: 8, color: 0xCCCCCC },
+            { name: 'Irodaház', height: 15, width: 8, depth: 10, color: 0x888888 },
+            { name: 'Bevásárlóközpont', height: 5, width: 20, depth: 15, color: 0xAAAAAAA },
+            { name: 'Hotel', height: 20, width: 12, depth: 8, color: 0x996633 },
+            { name: 'Iskola', height: 6, width: 15, depth: 10, color: 0xFFCC99 },
+            { name: 'Kórház', height: 12, width: 12, depth: 12, color: 0xFFFFFF },
+            { name: 'Templom', height: 18, width: 8, depth: 12, color: 0xDEB887 }
+        ];
+        
+        trackPoints.forEach((point, index) => {
+            if (index % 3 === 0) { // Minden 3. pontnál épület
+                const sides = ['left', 'right'];
+                
+                sides.forEach(side => {
+                    if (Math.random() > 0.3) { // 70% esély épületre
+                        const buildingType = buildingTypes[Math.floor(Math.random() * buildingTypes.length)];
+                        const distance = 25 + Math.random() * 20;
+                        const offset = side === 'left' ? -distance : distance;
+                        
+                        const buildingGroup = new THREE.Group();
+                        
+                        // Fő épület
+                        const geometry = new THREE.BoxGeometry(
+                            buildingType.width,
+                            buildingType.height,
+                            buildingType.depth
+                        );
+                        const material = new THREE.MeshLambertMaterial({ color: buildingType.color });
+                        const building = new THREE.Mesh(geometry, material);
+                        building.position.y = buildingType.height / 2;
+                        building.castShadow = true;
+                        buildingGroup.add(building);
+                        
+                        // Ablak effektek
+                        this.addWindowsToBuilding(buildingGroup, buildingType);
+                        
+                        // Tető
+                        if (buildingType.name === 'Templom') {
+                            const roofGeometry = new THREE.ConeGeometry(4, 8, 8);
+                            const roofMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+                            const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+                            roof.position.y = buildingType.height + 4;
+                            buildingGroup.add(roof);
+                        }
+                        
+                        buildingGroup.position.set(
+                            point.x + offset + (Math.random() - 0.5) * 10,
+                            0,
+                            point.z + (Math.random() - 0.5) * 10
+                        );
+                        
+                        this.scene.add(buildingGroup);
+                        
+                        this.trackData.buildings.push({
+                            name: buildingType.name,
+                            position: buildingGroup.position.clone(),
+                            type: buildingType.name.toLowerCase()
+                        });
+                    }
+                });
+            }
+        });
+        
+        console.log('Épületek létrehozva:', this.trackData.buildings.length);
+    }
+    
+    addWindowsToBuilding(buildingGroup, buildingType) {
+        const windowsPerFloor = Math.floor(buildingType.width / 2);
+        const floors = Math.floor(buildingType.height / 3);
+        
+        for (let floor = 0; floor < floors; floor++) {
+            for (let window = 0; window < windowsPerFloor; window++) {
+                // Ablak geometria
+                const windowGeometry = new THREE.PlaneGeometry(0.8, 1.2);
+                const isLit = Math.random() > 0.6; // 40% esély világító ablakra
+                const windowMaterial = new THREE.MeshLambertMaterial({ 
+                    color: isLit ? 0xFFFF88 : 0x333366,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const windowMesh = new THREE.Mesh(windowGeometry, windowMaterial);
+                
+                // Ablak pozicionálás
+                windowMesh.position.set(
+                    -buildingType.width/2 + window * 2 + 1,
+                    floor * 3 + 2,
+                    buildingType.depth/2 + 0.01
+                );
+                
+                buildingGroup.add(windowMesh);
+                
+                // Ha világít, fényforrás hozzáadása
+                if (isLit) {
+                    const windowLight = new THREE.PointLight(0xFFFF88, 0.3, 10);
+                    windowLight.position.copy(windowMesh.position);
+                    windowLight.position.z += 2;
+                    buildingGroup.add(windowLight);
+                }
+            }
+        }
+    }
+    
+    generateVegetation(trackPoints) {
+        // Fák generálása
+        trackPoints.forEach((point, index) => {
+            if (index % 2 === 0 && Math.random() > 0.4) {
+                const sides = ['left', 'right'];
+                
+                sides.forEach(side => {
+                    if (Math.random() > 0.5) {
+                        const treeGroup = new THREE.Group();
+                        
+                        // Törzs
+                        const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.5, 4, 8);
+                        const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+                        const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+                        trunk.position.y = 2;
+                        trunk.castShadow = true;
+                        treeGroup.add(trunk);
+                        
+                        // Lombkorona
+                        const crownGeometry = new THREE.SphereGeometry(2 + Math.random(), 8, 8);
+                        const crownMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+                        const crown = new THREE.Mesh(crownGeometry, crownMaterial);
+                        crown.position.y = 5 + Math.random();
+                        crown.castShadow = true;
+                        treeGroup.add(crown);
+                        
+                        const distance = 15 + Math.random() * 10;
+                        const offset = side === 'left' ? -distance : distance;
+                        
+                        treeGroup.position.set(
+                            point.x + offset + (Math.random() - 0.5) * 5,
+                            0,
+                            point.z + (Math.random() - 0.5) * 10
+                        );
+                        
+                        this.scene.add(treeGroup);
+                        this.trackData.trees.push(treeGroup.position.clone());
+                    }
+                });
+            }
+        });
+        
+        // Parkterület
+        const parkCenter = { x: 200, z: -100 };
+        for (let i = 0; i < 20; i++) {
+            const treeGroup = new THREE.Group();
+            
+            // Törzs
+            const trunkGeometry = new THREE.CylinderGeometry(0.4, 0.6, 5, 8);
+            const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+            trunk.position.y = 2.5;
+            trunk.castShadow = true;
+            treeGroup.add(trunk);
+            
+            // Lombkorona
+            const crownGeometry = new THREE.SphereGeometry(3 + Math.random(), 8, 8);
+            const crownMaterial = new THREE.MeshLambertMaterial({ color: 0x32CD32 });
+            const crown = new THREE.Mesh(crownGeometry, crownMaterial);
+            crown.position.y = 6 + Math.random();
+            crown.castShadow = true;
+            treeGroup.add(crown);
+            
+            treeGroup.position.set(
+                parkCenter.x + (Math.random() - 0.5) * 40,
+                0,
+                parkCenter.z + (Math.random() - 0.5) * 40
+            );
+            
+            this.scene.add(treeGroup);
+        }
+        
+        console.log('Növényzet létrehozva:', this.trackData.trees.length, 'fa');
+    }
+    
+    generateStreetLights(trackPoints) {
+        trackPoints.forEach((point, index) => {
+            if (index % 5 === 0) { // Minden 5. pontnál lámpa
+                const sides = ['left', 'right'];
+                
+                sides.forEach(side => {
+                    const lightGroup = new THREE.Group();
+                    
+                    // Lámpaoszlop
+                    const poleGeometry = new THREE.CylinderGeometry(0.1, 0.15, 6, 8);
+                    const poleMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+                    const pole = new THREE.Mesh(poleGeometry, poleMaterial);
+                    pole.position.y = 3;
+                    pole.castShadow = true;
+                    lightGroup.add(pole);
+                    
+                    // Lámpatest
+                    const lampGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+                    const lampMaterial = new THREE.MeshLambertMaterial({ 
+                        color: 0xFFFFAA,
+                        emissive: 0x444422
+                    });
+                    const lamp = new THREE.Mesh(lampGeometry, lampMaterial);
+                    lamp.position.y = 6;
+                    lightGroup.add(lamp);
+                    
+                    // Fényforrás
+                    const streetLight = new THREE.PointLight(0xFFFFAA, 1, 20);
+                    streetLight.position.y = 6;
+                    streetLight.castShadow = true;
+                    lightGroup.add(streetLight);
+                    
+                    const distance = 12;
+                    const offset = side === 'left' ? -distance : distance;
+                    
+                    lightGroup.position.set(
+                        point.x + offset,
+                        0,
+                        point.z
+                    );
+                    
+                    this.scene.add(lightGroup);
+                    this.trackData.streetLights.push(lightGroup.position.clone());
+                });
+            }
+        });
+        
+        console.log('Utcai világítás létrehozva:', this.trackData.streetLights.length, 'lámpa');
+    }
+    
+    generateTrafficElements(trackPoints) {
+        // Forgalmi táblák
+        trackPoints.forEach((point, index) => {
+            if (index % 8 === 0 && Math.random() > 0.5) {
+                const signGroup = new THREE.Group();
+                
+                // Tábla oszlop
+                const poleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 2.5, 8);
+                const poleMaterial = new THREE.MeshLambertMaterial({ color: 0x666666 });
+                const pole = new THREE.Mesh(poleGeometry, poleMaterial);
+                pole.position.y = 1.25;
+                signGroup.add(pole);
+                
+                // Tábla
+                const signGeometry = new THREE.PlaneGeometry(0.8, 0.8);
+                const signColors = [0xFF0000, 0x0000FF, 0xFFFF00, 0x00FF00];
+                const signMaterial = new THREE.MeshLambertMaterial({ 
+                    color: signColors[Math.floor(Math.random() * signColors.length)]
+                });
+                const sign = new THREE.Mesh(signGeometry, signMaterial);
+                sign.position.y = 2.5;
+                signGroup.add(sign);
+                
+                signGroup.position.set(
+                    point.x + (Math.random() > 0.5 ? -15 : 15),
+                    0,
+                    point.z + (Math.random() - 0.5) * 5
+                );
+                
+                this.scene.add(signGroup);
+            }
+        });
+        
+        // Jelzőlámpák főbb kereszteződésekben
+        const intersections = [
+            { x: 50, z: -180 },
+            { x: 280, z: -130 },
+            { x: 180, z: 230 }
+        ];
+        
+        intersections.forEach(intersection => {
+            const trafficLightGroup = new THREE.Group();
+            
+            // Oszlop
+            const poleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 4, 8);
+            const poleMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+            const pole = new THREE.Mesh(poleGeometry, poleMaterial);
+            pole.position.y = 2;
+            trafficLightGroup.add(pole);
+            
+            // Lámpaház
+            const housingGeometry = new THREE.BoxGeometry(0.3, 0.8, 0.2);
+            const housingMaterial = new THREE.MeshLambertMaterial({ color: 0x222222 });
+            const housing = new THREE.Mesh(housingGeometry, housingMaterial);
+            housing.position.y = 4;
+            trafficLightGroup.add(housing);
+            
+            // Lámpák (piros, sárga, zöld)
+            const lightColors = [0xFF0000, 0xFFFF00, 0x00FF00];
+            lightColors.forEach((color, i) => {
+                const lightGeometry = new THREE.CircleGeometry(0.08, 8);
+                const lightMaterial = new THREE.MeshLambertMaterial({ 
+                    color: i === 2 ? color : 0x333333, // Csak a zöld világít
+                    emissive: i === 2 ? 0x002200 : 0x000000
+                });
+                const light = new THREE.Mesh(lightGeometry, lightMaterial);
+                light.position.set(0, 4.3 - i * 0.2, 0.11);
+                trafficLightGroup.add(light);
+            });
+            
+            trafficLightGroup.position.set(intersection.x, 0, intersection.z);
+            this.scene.add(trafficLightGroup);
+        });
+    }
+    
+    distance(p1, p2) {
+        return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.z - p1.z, 2));
+    }
+    
     createScene() {
         // Scene
         this.scene = new THREE.Scene();
-        this.scene.fog = new THREE.Fog(0x000033, 50, 200);
+        this.scene.fog = new THREE.Fog(0x87CEEB, 100, 800);
         
         // Renderer
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setClearColor(0x000033);
+        this.renderer.setClearColor(0x87CEEB); // Nappali ég szín
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         
@@ -83,16 +545,22 @@ class Lotus3DRacing {
     
     createLighting() {
         // Ambiens fény
-        const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
         this.scene.add(ambientLight);
         
-        // Irányított fény (nap)
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(50, 100, 50);
-        directionalLight.castShadow = true;
-        directionalLight.shadow.mapSize.width = 2048;
-        directionalLight.shadow.mapSize.height = 2048;
-        this.scene.add(directionalLight);
+        // Nap (irányított fény)
+        const sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        sunLight.position.set(200, 300, 200);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 4096;
+        sunLight.shadow.mapSize.height = 4096;
+        sunLight.shadow.camera.near = 0.5;
+        sunLight.shadow.camera.far = 1000;
+        sunLight.shadow.camera.left = -200;
+        sunLight.shadow.camera.right = 200;
+        sunLight.shadow.camera.top = 200;
+        sunLight.shadow.camera.bottom = -200;
+        this.scene.add(sunLight);
         
         // Autó fényszórók
         const headlight1 = new THREE.SpotLight(0xffffff, 1, 30, Math.PI / 6);
@@ -168,18 +636,6 @@ class Lotus3DRacing {
         rearBumper.castShadow = true;
         carGroup.add(rearBumper);
         
-        // Oldalküszöb (GT-86 jellegzetes)
-        const sideSillGeometry = new THREE.BoxGeometry(0.1, 0.15, 3.5);
-        const sideSillMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
-        
-        const leftSill = new THREE.Mesh(sideSillGeometry, sideSillMaterial);
-        leftSill.position.set(-0.95, 0.1, 0);
-        carGroup.add(leftSill);
-        
-        const rightSill = new THREE.Mesh(sideSillGeometry, sideSillMaterial);
-        rightSill.position.set(0.95, 0.1, 0);
-        carGroup.add(rightSill);
-        
         // Visszapillantó tükrök (narancssárga)
         const mirrorGeometry = new THREE.BoxGeometry(0.08, 0.06, 0.12);
         const mirrorMaterial = new THREE.MeshLambertMaterial({ color: 0xff6600 });
@@ -191,25 +647,6 @@ class Lotus3DRacing {
         const rightMirror = new THREE.Mesh(mirrorGeometry, mirrorMaterial);
         rightMirror.position.set(1.0, 0.9, 0.8);
         carGroup.add(rightMirror);
-        
-        // Szélvédő
-        const windshieldGeometry = new THREE.PlaneGeometry(1.5, 1.0);
-        const windshieldMaterial = new THREE.MeshLambertMaterial({ 
-            color: 0x003366, 
-            transparent: true, 
-            opacity: 0.7 
-        });
-        const windshield = new THREE.Mesh(windshieldGeometry, windshieldMaterial);
-        windshield.position.set(0, 0.9, 0.5);
-        windshield.rotation.x = -0.3;
-        carGroup.add(windshield);
-        
-        // Hátsó szélvédő
-        const rearWindshieldGeometry = new THREE.PlaneGeometry(1.4, 0.8);
-        const rearWindshield = new THREE.Mesh(rearWindshieldGeometry, windshieldMaterial);
-        rearWindshield.position.set(0, 0.85, -1.2);
-        rearWindshield.rotation.x = 0.3;
-        carGroup.add(rearWindshield);
         
         // Kerekek (GT-86 stílusú)
         const wheelGeometry = new THREE.CylinderGeometry(0.32, 0.32, 0.25, 16);
@@ -246,7 +683,7 @@ class Lotus3DRacing {
             this.wheels.push(wheelGroup);
         });
         
-        // LED fényszórók (GT-86 stílus)
+        // LED fényszórók
         const headlightGeometry = new THREE.BoxGeometry(0.3, 0.15, 0.1);
         const headlightMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
         
@@ -270,20 +707,6 @@ class Lotus3DRacing {
         rightTailLight.position.set(0.7, 0.45, -2.2);
         carGroup.add(rightTailLight);
         
-        // Kipufogó csövek
-        const exhaustGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8);
-        const exhaustMaterial = new THREE.MeshLambertMaterial({ color: 0x444444 });
-        
-        const leftExhaust = new THREE.Mesh(exhaustGeometry, exhaustMaterial);
-        leftExhaust.rotation.z = Math.PI / 2;
-        leftExhaust.position.set(-0.5, 0.1, -2.4);
-        carGroup.add(leftExhaust);
-        
-        const rightExhaust = new THREE.Mesh(exhaustGeometry, exhaustMaterial);
-        rightExhaust.rotation.z = Math.PI / 2;
-        rightExhaust.position.set(0.5, 0.1, -2.4);
-        carGroup.add(rightExhaust);
-        
         // Fényszórók pozicionálása
         this.headlights[0].position.set(-0.6, 0.5, 2.5);
         this.headlights[1].position.set(0.6, 0.5, 2.5);
@@ -292,51 +715,6 @@ class Lotus3DRacing {
         
         this.car = carGroup;
         this.scene.add(this.car);
-    }
-    
-    createRoad() {
-        const roadWidth = 20;
-        const segmentLength = 10;
-        const segments = 100;
-        
-        // Egyenes pálya a könnyebb teszteléshez
-        for (let i = 0; i < segments; i++) {
-            const z = -i * segmentLength;
-            
-            this.trackData.segments.push({ x: 0, z: z, angle: 0 });
-            
-            // Út szegmens
-            const roadGeometry = new THREE.PlaneGeometry(roadWidth, segmentLength);
-            const roadMaterial = new THREE.MeshLambertMaterial({ 
-                color: i % 2 === 0 ? 0x444444 : 0x555555 
-            });
-            const roadSegment = new THREE.Mesh(roadGeometry, roadMaterial);
-            roadSegment.rotation.x = -Math.PI / 2;
-            roadSegment.position.set(0, 0, z);
-            roadSegment.receiveShadow = true;
-            this.scene.add(roadSegment);
-            this.road.push(roadSegment);
-            
-            // Középső vonal
-            if (i % 4 < 2) {
-                const lineGeometry = new THREE.PlaneGeometry(0.5, segmentLength);
-                const lineMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
-                const line = new THREE.Mesh(lineGeometry, lineMaterial);
-                line.rotation.x = -Math.PI / 2;
-                line.position.set(0, 0.01, z);
-                this.scene.add(line);
-            }
-            
-            // Szélső vonalak
-            [-roadWidth/2, roadWidth/2].forEach(offset => {
-                const borderGeometry = new THREE.PlaneGeometry(1, segmentLength);
-                const borderMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
-                const border = new THREE.Mesh(borderGeometry, borderMaterial);
-                border.rotation.x = -Math.PI / 2;
-                border.position.set(offset, 0.01, z);
-                this.scene.add(border);
-            });
-        }
     }
     
     createOpponents() {
@@ -352,17 +730,28 @@ class Lotus3DRacing {
             body.castShadow = true;
             opponentGroup.add(body);
             
-            // Pozicionálás
-            opponentGroup.position.set(
-                (Math.random() - 0.5) * 15,
-                0.5,
-                -50 - i * 30
-            );
+            // Pozicionálás a pályán
+            if (this.trackData.segments.length > 0) {
+                const segmentIndex = Math.min(i * 10, this.trackData.segments.length - 1);
+                const segment = this.trackData.segments[segmentIndex];
+                opponentGroup.position.set(
+                    segment.x + (Math.random() - 0.5) * 10,
+                    0.5,
+                    segment.z - 20
+                );
+            } else {
+                opponentGroup.position.set(
+                    (Math.random() - 0.5) * 15,
+                    0.5,
+                    -50 - i * 30
+                );
+            }
             
             this.opponents.push({
                 mesh: opponentGroup,
                 speed: 80 + Math.random() * 40,
-                lane: (Math.random() - 0.5) * 15
+                lane: (Math.random() - 0.5) * 15,
+                targetSegment: i * 10
             });
             
             this.scene.add(opponentGroup);
@@ -370,29 +759,47 @@ class Lotus3DRacing {
     }
     
     createEnvironment() {
-        // Égbolt
-        const skyGeometry = new THREE.SphereGeometry(500, 32, 32);
+        // Égbolt (nappali)
+        const skyGeometry = new THREE.SphereGeometry(1000, 32, 32);
         const skyMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0x000066,
+            color: 0x87CEEB,
             side: THREE.BackSide 
         });
         const sky = new THREE.Mesh(skyGeometry, skyMaterial);
         this.scene.add(sky);
         
-        // Fák és tájelem
-        for (let i = 0; i < 50; i++) {
-            const treeGeometry = new THREE.ConeGeometry(2, 8, 8);
-            const treeMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
-            const tree = new THREE.Mesh(treeGeometry, treeMaterial);
-            
-            const side = Math.random() > 0.5 ? 1 : -1;
-            tree.position.set(
-                side * (25 + Math.random() * 20),
-                4,
-                -Math.random() * 1000
+        // Felhők
+        for (let i = 0; i < 30; i++) {
+            const cloudGeometry = new THREE.SphereGeometry(8 + Math.random() * 4, 8, 8);
+            const cloudMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.8
+            });
+            const cloud = new THREE.Mesh(cloudGeometry, cloudMaterial);
+            cloud.position.set(
+                (Math.random() - 0.5) * 1000,
+                80 + Math.random() * 40,
+                (Math.random() - 0.5) * 1000
             );
-            tree.castShadow = true;
-            this.scene.add(tree);
+            this.scene.add(cloud);
+        }
+        
+        // Városi talaj/fű területek
+        for (let i = 0; i < 200; i++) {
+            const groundGeometry = new THREE.PlaneGeometry(15, 15);
+            const groundMaterial = new THREE.MeshLambertMaterial({ 
+                color: Math.random() > 0.7 ? 0x228B22 : 0x90EE90 // Változó zöld árnyalatok
+            });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.set(
+                (Math.random() - 0.5) * 800,
+                -0.1,
+                (Math.random() - 0.5) * 800
+            );
+            ground.receiveShadow = true;
+            this.scene.add(ground);
         }
     }
     
@@ -411,30 +818,67 @@ class Lotus3DRacing {
         ctx.fillStyle = '#001122';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        const scale = 0.15;
+        const scale = 0.5;
         const centerX = canvas.width / 2;
         const centerY = canvas.height / 2;
         
-        // Pálya rajzolása (egyenes út)
-        ctx.strokeStyle = '#666666';
-        ctx.lineWidth = 8;
-        ctx.beginPath();
-        ctx.moveTo(centerX, 20);
-        ctx.lineTo(centerX, canvas.height - 20);
-        ctx.stroke();
+        // Pálya rajzolása
+        if (this.trackData.segments.length > 0) {
+            ctx.strokeStyle = '#666666';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            
+            this.trackData.segments.forEach((segment, index) => {
+                const x = centerX + (segment.x - this.car.position.x) * scale;
+                const y = centerY + (segment.z - this.car.position.z) * scale;
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            ctx.stroke();
+            
+            // Pálya szélek
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
         
-        // Pálya szélek
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        // Épületek rajzolása
+        ctx.fillStyle = '#ffff00';
+        this.trackData.buildings.forEach(building => {
+            const x = centerX + (building.position.x - this.car.position.x) * scale;
+            const y = centerY + (building.position.z - this.car.position.z) * scale;
+            
+            if (x > 0 && x < canvas.width && y > 0 && y < canvas.height) {
+                ctx.beginPath();
+                ctx.rect(x - 2, y - 2, 4, 4);
+                ctx.fill();
+            }
+        });
+        
+        // Utcai lámpák
+        ctx.fillStyle = '#ffff88';
+        this.trackData.streetLights.forEach(light => {
+            const x = centerX + (light.x - this.car.position.x) * scale;
+            const y = centerY + (light.z - this.car.position.z) * scale;
+            
+            if (x > 0 && x < canvas.width && y > 0 && y < canvas.height) {
+                ctx.beginPath();
+                ctx.arc(x, y, 1, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
         
         // Ellenfelek rajzolása
         ctx.fillStyle = '#ff0000';
         this.opponents.forEach(opponent => {
-            const x = centerX + opponent.mesh.position.x * scale;
-            const y = centerY + (opponent.mesh.position.z - this.car.position.z) * scale * 0.1;
+            const x = centerX + (opponent.mesh.position.x - this.car.position.x) * scale;
+            const y = centerY + (opponent.mesh.position.z - this.car.position.z) * scale;
             
-            if (y > 0 && y < canvas.height) {
+            if (x > 0 && x < canvas.width && y > 0 && y < canvas.height) {
                 ctx.beginPath();
                 ctx.arc(x, y, 3, 0, Math.PI * 2);
                 ctx.fill();
@@ -446,7 +890,7 @@ class Lotus3DRacing {
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
         
-        const playerX = centerX + this.car.position.x * scale;
+        const playerX = centerX;
         const playerY = centerY;
         
         ctx.save();
@@ -466,7 +910,7 @@ class Lotus3DRacing {
     }
     
     setupCamera() {
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
         this.updateCamera();
     }
     
@@ -489,7 +933,7 @@ class Lotus3DRacing {
                 this.camera.lookAt(lookTarget);
                 break;
             case 2: // Felülnézet
-                this.camera.position.set(this.car.position.x, 20, this.car.position.z + 5);
+                this.camera.position.set(this.car.position.x, 50, this.car.position.z + 10);
                 this.camera.lookAt(this.car.position);
                 break;
         }
@@ -529,7 +973,7 @@ class Lotus3DRacing {
     handleInput() {
         const deltaTime = 0.016; // ~60 FPS
         
-        // Gyorsítás - JAVÍTOTT LOGIKA
+        // Gyorsítás
         if (this.keys['KeyW'] || this.keys['ArrowUp']) {
             this.gameState.speed = Math.min(
                 this.gameState.speed + this.gameState.acceleration,
@@ -559,18 +1003,20 @@ class Lotus3DRacing {
             );
         }
         
-        // Kormányozás - csak mozgás közben
+        // JAVÍTOTT KORMÁNYOZÁS - FORDÍTOTT IRÁNYOK
         const speedFactor = Math.max(this.gameState.speed / this.gameState.maxSpeed, 0.1);
         
         if (this.keys['KeyA'] || this.keys['ArrowLeft']) {
-            this.gameState.turnSpeed = Math.max(
-                this.gameState.turnSpeed - 0.001 * speedFactor,
-                -this.gameState.maxTurnSpeed * speedFactor
-            );
-        } else if (this.keys['KeyD'] || this.keys['ArrowRight']) {
+            // BALRA KANYARODÁS - POZITÍV IRÁNY
             this.gameState.turnSpeed = Math.min(
                 this.gameState.turnSpeed + 0.001 * speedFactor,
                 this.gameState.maxTurnSpeed * speedFactor
+            );
+        } else if (this.keys['KeyD'] || this.keys['ArrowRight']) {
+            // JOBBRA KANYARODÁS - NEGATÍV IRÁNY
+            this.gameState.turnSpeed = Math.max(
+                this.gameState.turnSpeed - 0.001 * speedFactor,
+                -this.gameState.maxTurnSpeed * speedFactor
             );
         } else {
             this.gameState.turnSpeed *= 0.9; // Fokozatos visszatérés középre
@@ -582,9 +1028,9 @@ class Lotus3DRacing {
         this.gameState.rotation += this.gameState.turnSpeed;
         this.car.rotation.y = this.gameState.rotation;
         
-        // JAVÍTOTT MOZGÁS LOGIKA
+        // Mozgás logika
         if (this.gameState.speed > 0) {
-            const speedFactor = this.gameState.speed * 0.02; // Növelt sebesség faktor
+            const speedFactor = this.gameState.speed * 0.02;
             
             // Előre mozgás a forgatás irányában
             const direction = new THREE.Vector3(0, 0, -1);
@@ -627,7 +1073,7 @@ class Lotus3DRacing {
         this.gameState.gear = Math.min(this.gameState.gear, 6);
         
         // Kör számítás
-        const lapLength = 500;
+        const lapLength = 1000;
         this.gameState.lap = Math.floor(this.gameState.distanceTraveled / lapLength) + 1;
         this.gameState.lap = Math.min(this.gameState.lap, this.gameState.totalLaps);
         
@@ -639,14 +1085,31 @@ class Lotus3DRacing {
     }
     
     updateOpponents() {
-        this.opponents.forEach(opponent => {
-            // Egyszerű AI mozgás
-            opponent.mesh.position.z += 0.5;
-            
-            // Ha túl messze van, újrapozicionáljuk
-            if (opponent.mesh.position.z > this.car.position.z + 100) {
-                opponent.mesh.position.z = this.car.position.z - 300;
-                opponent.mesh.position.x = (Math.random() - 0.5) * 15;
+        this.opponents.forEach((opponent, index) => {
+            // Egyszerű AI - pálya követés
+            if (this.trackData.segments.length > 0) {
+                opponent.targetSegment = (opponent.targetSegment + 1) % this.trackData.segments.length;
+                const targetSegment = this.trackData.segments[opponent.targetSegment];
+                
+                // Mozgás a célszegmens felé
+                const dx = targetSegment.x - opponent.mesh.position.x;
+                const dz = targetSegment.z - opponent.mesh.position.z;
+                const distance = Math.sqrt(dx * dx + dz * dz);
+                
+                if (distance > 1) {
+                    const speed = 0.5;
+                    opponent.mesh.position.x += (dx / distance) * speed;
+                    opponent.mesh.position.z += (dz / distance) * speed;
+                }
+            } else {
+                // Fallback: egyszerű mozgás
+                opponent.mesh.position.z += 0.5;
+                
+                // Ha túl messze van, újrapozicionáljuk
+                if (opponent.mesh.position.z > this.car.position.z + 100) {
+                    opponent.mesh.position.z = this.car.position.z - 300;
+                    opponent.mesh.position.x = (Math.random() - 0.5) * 15;
+                }
             }
         });
     }
