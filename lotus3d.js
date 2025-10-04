@@ -19,11 +19,11 @@ class Lotus3DRacing {
         // Játék állapot
         this.gameState = {
             speed: 0,
-            maxSpeed: 300,
-            acceleration: 2,
-            deceleration: 3,
+            maxSpeed: 250,
+            acceleration: 1.5,
+            deceleration: 2,
             turnSpeed: 0,
-            maxTurnSpeed: 0.05,
+            maxTurnSpeed: 0.03,
             position: new THREE.Vector3(0, 0.5, 0),
             rotation: 0,
             lap: 1,
@@ -46,7 +46,7 @@ class Lotus3DRacing {
     init() {
         this.createScene();
         this.createLighting();
-        this.createCar();
+        this.createGT86Car();
         this.createRoad();
         this.createOpponents();
         this.createEnvironment();
@@ -83,7 +83,7 @@ class Lotus3DRacing {
     
     createLighting() {
         // Ambiens fény
-        const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
         this.scene.add(ambientLight);
         
         // Irányított fény (nap)
@@ -102,78 +102,128 @@ class Lotus3DRacing {
         this.scene.add(headlight2);
     }
     
-    createCar() {
+    createGT86Car() {
         const carGroup = new THREE.Group();
         
-        // Autó test (fekete)
-        const bodyGeometry = new THREE.BoxGeometry(1.8, 0.6, 4);
-        const bodyMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 });
-        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        body.position.y = 0.3;
-        body.castShadow = true;
-        carGroup.add(body);
+        // Fő karosszéria (GT-86 stílusú alacsony sportkocsi)
+        const mainBodyGeometry = new THREE.BoxGeometry(1.8, 0.5, 4.2);
+        const mainBodyMaterial = new THREE.MeshLambertMaterial({ color: 0x1a1a1a }); // Sötétszürke
+        const mainBody = new THREE.Mesh(mainBodyGeometry, mainBodyMaterial);
+        mainBody.position.y = 0.4;
+        mainBody.castShadow = true;
+        carGroup.add(mainBody);
         
-        // Hátsó lökhárító (narancssárga)
-        const rearBumperGeometry = new THREE.BoxGeometry(1.9, 0.3, 0.3);
-        const rearBumperMaterial = new THREE.MeshLambertMaterial({ color: 0xff6600 });
-        const rearBumper = new THREE.Mesh(rearBumperGeometry, rearBumperMaterial);
-        rearBumper.position.set(0, 0.15, -2.1);
-        rearBumper.castShadow = true;
-        carGroup.add(rearBumper);
+        // Alsó karosszéria
+        const lowerBodyGeometry = new THREE.BoxGeometry(1.9, 0.3, 4.3);
+        const lowerBodyMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 });
+        const lowerBody = new THREE.Mesh(lowerBodyGeometry, lowerBodyMaterial);
+        lowerBody.position.y = 0.15;
+        lowerBody.castShadow = true;
+        carGroup.add(lowerBody);
         
-        // Első lökhárító (fekete)
-        const frontBumperGeometry = new THREE.BoxGeometry(1.9, 0.3, 0.3);
-        const frontBumperMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 });
-        const frontBumper = new THREE.Mesh(frontBumperGeometry, frontBumperMaterial);
-        frontBumper.position.set(0, 0.15, 2.1);
-        frontBumper.castShadow = true;
-        carGroup.add(frontBumper);
-        
-        // Tetö (fekete)
-        const roofGeometry = new THREE.BoxGeometry(1.6, 0.4, 2);
+        // Tető/Kabinfedél (GT-86 jellegzetes alacsony tető)
+        const roofGeometry = new THREE.BoxGeometry(1.6, 0.35, 2.2);
         const roofMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 });
         const roof = new THREE.Mesh(roofGeometry, roofMaterial);
-        roof.position.set(0, 0.8, -0.5);
+        roof.position.set(0, 0.85, -0.3);
         roof.castShadow = true;
         carGroup.add(roof);
         
+        // Motorháztető
+        const hoodGeometry = new THREE.BoxGeometry(1.7, 0.1, 1.5);
+        const hoodMaterial = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+        const hood = new THREE.Mesh(hoodGeometry, hoodMaterial);
+        hood.position.set(0, 0.75, 1.2);
+        hood.castShadow = true;
+        carGroup.add(hood);
+        
+        // Csomagtartó
+        const trunkGeometry = new THREE.BoxGeometry(1.6, 0.1, 1.2);
+        const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+        const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+        trunk.position.set(0, 0.75, -1.8);
+        trunk.castShadow = true;
+        carGroup.add(trunk);
+        
+        // Első lökhárító (narancssárga akcentek)
+        const frontBumperGeometry = new THREE.BoxGeometry(1.9, 0.25, 0.4);
+        const frontBumperMaterial = new THREE.MeshLambertMaterial({ color: 0x000000 });
+        const frontBumper = new THREE.Mesh(frontBumperGeometry, frontBumperMaterial);
+        frontBumper.position.set(0, 0.2, 2.3);
+        frontBumper.castShadow = true;
+        carGroup.add(frontBumper);
+        
+        // Első lökhárító narancssárga csík
+        const frontAccentGeometry = new THREE.BoxGeometry(1.5, 0.05, 0.35);
+        const frontAccentMaterial = new THREE.MeshLambertMaterial({ color: 0xff6600 });
+        const frontAccent = new THREE.Mesh(frontAccentGeometry, frontAccentMaterial);
+        frontAccent.position.set(0, 0.15, 2.32);
+        carGroup.add(frontAccent);
+        
+        // Hátsó lökhárító (narancssárga)
+        const rearBumperGeometry = new THREE.BoxGeometry(1.9, 0.25, 0.4);
+        const rearBumperMaterial = new THREE.MeshLambertMaterial({ color: 0xff6600 });
+        const rearBumper = new THREE.Mesh(rearBumperGeometry, rearBumperMaterial);
+        rearBumper.position.set(0, 0.2, -2.3);
+        rearBumper.castShadow = true;
+        carGroup.add(rearBumper);
+        
+        // Oldalküszöb (GT-86 jellegzetes)
+        const sideSillGeometry = new THREE.BoxGeometry(0.1, 0.15, 3.5);
+        const sideSillMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+        
+        const leftSill = new THREE.Mesh(sideSillGeometry, sideSillMaterial);
+        leftSill.position.set(-0.95, 0.1, 0);
+        carGroup.add(leftSill);
+        
+        const rightSill = new THREE.Mesh(sideSillGeometry, sideSillMaterial);
+        rightSill.position.set(0.95, 0.1, 0);
+        carGroup.add(rightSill);
+        
         // Visszapillantó tükrök (narancssárga)
-        const mirrorGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.2);
+        const mirrorGeometry = new THREE.BoxGeometry(0.08, 0.06, 0.12);
         const mirrorMaterial = new THREE.MeshLambertMaterial({ color: 0xff6600 });
         
         const leftMirror = new THREE.Mesh(mirrorGeometry, mirrorMaterial);
-        leftMirror.position.set(-1.0, 0.9, 0.5);
+        leftMirror.position.set(-1.0, 0.9, 0.8);
         carGroup.add(leftMirror);
         
         const rightMirror = new THREE.Mesh(mirrorGeometry, mirrorMaterial);
-        rightMirror.position.set(1.0, 0.9, 0.5);
+        rightMirror.position.set(1.0, 0.9, 0.8);
         carGroup.add(rightMirror);
         
-        // Szélvédő (kék árnyalat)
-        const windshieldGeometry = new THREE.PlaneGeometry(1.5, 1.2);
+        // Szélvédő
+        const windshieldGeometry = new THREE.PlaneGeometry(1.5, 1.0);
         const windshieldMaterial = new THREE.MeshLambertMaterial({ 
             color: 0x003366, 
             transparent: true, 
             opacity: 0.7 
         });
         const windshield = new THREE.Mesh(windshieldGeometry, windshieldMaterial);
-        windshield.position.set(0, 0.9, 0.3);
-        windshield.rotation.x = -0.2;
+        windshield.position.set(0, 0.9, 0.5);
+        windshield.rotation.x = -0.3;
         carGroup.add(windshield);
         
-        // Kerekek (fekete)
-        const wheelGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 16);
+        // Hátsó szélvédő
+        const rearWindshieldGeometry = new THREE.PlaneGeometry(1.4, 0.8);
+        const rearWindshield = new THREE.Mesh(rearWindshieldGeometry, windshieldMaterial);
+        rearWindshield.position.set(0, 0.85, -1.2);
+        rearWindshield.rotation.x = 0.3;
+        carGroup.add(rearWindshield);
+        
+        // Kerekek (GT-86 stílusú)
+        const wheelGeometry = new THREE.CylinderGeometry(0.32, 0.32, 0.25, 16);
         const wheelMaterial = new THREE.MeshLambertMaterial({ color: 0x111111 });
         
-        // Felni (ezüst)
-        const rimGeometry = new THREE.CylinderGeometry(0.25, 0.25, 0.15, 16);
-        const rimMaterial = new THREE.MeshLambertMaterial({ color: 0x888888 });
+        // Sportfelnik
+        const rimGeometry = new THREE.CylinderGeometry(0.28, 0.28, 0.2, 8);
+        const rimMaterial = new THREE.MeshLambertMaterial({ color: 0x666666 });
         
         const wheelPositions = [
-            [-0.9, 0, 1.3],   // bal első
-            [0.9, 0, 1.3],    // jobb első
-            [-0.9, 0, -1.3],  // bal hátsó
-            [0.9, 0, -1.3]    // jobb hátsó
+            [-0.9, 0, 1.4],   // bal első
+            [0.9, 0, 1.4],    // jobb első
+            [-0.9, 0, -1.4],  // bal hátsó
+            [0.9, 0, -1.4]    // jobb hátsó
         ];
         
         this.wheels = [];
@@ -196,37 +246,47 @@ class Lotus3DRacing {
             this.wheels.push(wheelGroup);
         });
         
-        // Fényszórók
-        const headlightGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.1, 8);
-        const headlightMaterial = new THREE.MeshLambertMaterial({ color: 0xffffcc });
+        // LED fényszórók (GT-86 stílus)
+        const headlightGeometry = new THREE.BoxGeometry(0.3, 0.15, 0.1);
+        const headlightMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
         
         const leftHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
-        leftHeadlight.rotation.z = Math.PI / 2;
-        leftHeadlight.position.set(-0.6, 0.4, 1.9);
+        leftHeadlight.position.set(-0.6, 0.45, 2.2);
         carGroup.add(leftHeadlight);
         
         const rightHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
-        rightHeadlight.rotation.z = Math.PI / 2;
-        rightHeadlight.position.set(0.6, 0.4, 1.9);
+        rightHeadlight.position.set(0.6, 0.45, 2.2);
         carGroup.add(rightHeadlight);
         
-        // Hátsó lámpák (piros)
-        const tailLightGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.05, 8);
+        // Hátsó LED lámpák
+        const tailLightGeometry = new THREE.BoxGeometry(0.25, 0.12, 0.08);
         const tailLightMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 });
         
         const leftTailLight = new THREE.Mesh(tailLightGeometry, tailLightMaterial);
-        leftTailLight.rotation.z = Math.PI / 2;
-        leftTailLight.position.set(-0.6, 0.4, -1.9);
+        leftTailLight.position.set(-0.7, 0.45, -2.2);
         carGroup.add(leftTailLight);
         
         const rightTailLight = new THREE.Mesh(tailLightGeometry, tailLightMaterial);
-        rightTailLight.rotation.z = Math.PI / 2;
-        rightTailLight.position.set(0.6, 0.4, -1.9);
+        rightTailLight.position.set(0.7, 0.45, -2.2);
         carGroup.add(rightTailLight);
         
+        // Kipufogó csövek
+        const exhaustGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8);
+        const exhaustMaterial = new THREE.MeshLambertMaterial({ color: 0x444444 });
+        
+        const leftExhaust = new THREE.Mesh(exhaustGeometry, exhaustMaterial);
+        leftExhaust.rotation.z = Math.PI / 2;
+        leftExhaust.position.set(-0.5, 0.1, -2.4);
+        carGroup.add(leftExhaust);
+        
+        const rightExhaust = new THREE.Mesh(exhaustGeometry, exhaustMaterial);
+        rightExhaust.rotation.z = Math.PI / 2;
+        rightExhaust.position.set(0.5, 0.1, -2.4);
+        carGroup.add(rightExhaust);
+        
         // Fényszórók pozicionálása
-        this.headlights[0].position.set(-0.6, 0.4, 2);
-        this.headlights[1].position.set(0.6, 0.4, 2);
+        this.headlights[0].position.set(-0.6, 0.5, 2.5);
+        this.headlights[1].position.set(0.6, 0.5, 2.5);
         carGroup.add(this.headlights[0]);
         carGroup.add(this.headlights[1]);
         
@@ -239,13 +299,11 @@ class Lotus3DRacing {
         const segmentLength = 10;
         const segments = 100;
         
-        // Pálya adatok létrehozása térképhez
+        // Egyenes pálya a könnyebb teszteléshez
         for (let i = 0; i < segments; i++) {
-            const angle = (i / segments) * Math.PI * 4; // 2 teljes kör
-            const x = Math.sin(angle) * 30;
             const z = -i * segmentLength;
             
-            this.trackData.segments.push({ x, z, angle });
+            this.trackData.segments.push({ x: 0, z: z, angle: 0 });
             
             // Út szegmens
             const roadGeometry = new THREE.PlaneGeometry(roadWidth, segmentLength);
@@ -254,7 +312,7 @@ class Lotus3DRacing {
             });
             const roadSegment = new THREE.Mesh(roadGeometry, roadMaterial);
             roadSegment.rotation.x = -Math.PI / 2;
-            roadSegment.position.set(x, 0, z);
+            roadSegment.position.set(0, 0, z);
             roadSegment.receiveShadow = true;
             this.scene.add(roadSegment);
             this.road.push(roadSegment);
@@ -265,7 +323,7 @@ class Lotus3DRacing {
                 const lineMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
                 const line = new THREE.Mesh(lineGeometry, lineMaterial);
                 line.rotation.x = -Math.PI / 2;
-                line.position.set(x, 0.01, z);
+                line.position.set(0, 0.01, z);
                 this.scene.add(line);
             }
             
@@ -275,7 +333,7 @@ class Lotus3DRacing {
                 const borderMaterial = new THREE.MeshLambertMaterial({ color: 0xffffff });
                 const border = new THREE.Mesh(borderGeometry, borderMaterial);
                 border.rotation.x = -Math.PI / 2;
-                border.position.set(x + offset, 0.01, z);
+                border.position.set(offset, 0.01, z);
                 this.scene.add(border);
             });
         }
@@ -294,20 +352,17 @@ class Lotus3DRacing {
             body.castShadow = true;
             opponentGroup.add(body);
             
-            // Pozicionálás a pályán
-            const segmentIndex = 10 + i * 15;
-            const segment = this.trackData.segments[segmentIndex];
+            // Pozicionálás
             opponentGroup.position.set(
-                segment.x + (Math.random() - 0.5) * 10,
+                (Math.random() - 0.5) * 15,
                 0.5,
-                segment.z
+                -50 - i * 30
             );
             
             this.opponents.push({
                 mesh: opponentGroup,
-                speed: 100 + Math.random() * 50,
-                segmentIndex: segmentIndex,
-                lane: (Math.random() - 0.5) * 10
+                speed: 80 + Math.random() * 40,
+                lane: (Math.random() - 0.5) * 15
             });
             
             this.scene.add(opponentGroup);
@@ -360,21 +415,12 @@ class Lotus3DRacing {
         const centerX = canvas.width / 2;
         const centerY = canvas.height / 2;
         
-        // Pálya rajzolása
+        // Pálya rajzolása (egyenes út)
         ctx.strokeStyle = '#666666';
         ctx.lineWidth = 8;
         ctx.beginPath();
-        
-        this.trackData.segments.forEach((segment, index) => {
-            const x = centerX + segment.x * scale;
-            const y = centerY + segment.z * scale * 0.1;
-            
-            if (index === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
-            }
-        });
+        ctx.moveTo(centerX, 20);
+        ctx.lineTo(centerX, canvas.height - 20);
         ctx.stroke();
         
         // Pálya szélek
@@ -386,11 +432,13 @@ class Lotus3DRacing {
         ctx.fillStyle = '#ff0000';
         this.opponents.forEach(opponent => {
             const x = centerX + opponent.mesh.position.x * scale;
-            const y = centerY + opponent.mesh.position.z * scale * 0.1;
+            const y = centerY + (opponent.mesh.position.z - this.car.position.z) * scale * 0.1;
             
-            ctx.beginPath();
-            ctx.arc(x, y, 3, 0, Math.PI * 2);
-            ctx.fill();
+            if (y > 0 && y < canvas.height) {
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
         });
         
         // Játékos autó rajzolása
@@ -399,7 +447,7 @@ class Lotus3DRacing {
         ctx.lineWidth = 2;
         
         const playerX = centerX + this.car.position.x * scale;
-        const playerY = centerY + this.car.position.z * scale * 0.1;
+        const playerY = centerY;
         
         ctx.save();
         ctx.translate(playerX, playerY);
@@ -415,19 +463,6 @@ class Lotus3DRacing {
         ctx.stroke();
         
         ctx.restore();
-        
-        // Iránytű
-        ctx.strokeStyle = '#ff6600';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, 80, 0, Math.PI * 2);
-        ctx.stroke();
-        
-        // Észak jelölés
-        ctx.fillStyle = '#ff6600';
-        ctx.font = '12px Courier New';
-        ctx.textAlign = 'center';
-        ctx.fillText('É', centerX, centerY - 85);
     }
     
     setupCamera() {
@@ -438,15 +473,23 @@ class Lotus3DRacing {
     updateCamera() {
         switch (this.gameState.cameraMode) {
             case 0: // Hátsó nézet
-                this.camera.position.set(0, 3, 8);
+                const backOffset = new THREE.Vector3(0, 2.5, 6);
+                backOffset.applyQuaternion(this.car.quaternion);
+                this.camera.position.copy(this.car.position).add(backOffset);
                 this.camera.lookAt(this.car.position);
                 break;
             case 1: // Cockpit nézet
-                this.camera.position.set(0, 1.2, 1);
-                this.camera.lookAt(new THREE.Vector3(0, 1, -10));
+                const cockpitOffset = new THREE.Vector3(0, 1.0, 0.5);
+                cockpitOffset.applyQuaternion(this.car.quaternion);
+                this.camera.position.copy(this.car.position).add(cockpitOffset);
+                const lookTarget = this.car.position.clone();
+                const lookDirection = new THREE.Vector3(0, 0, -10);
+                lookDirection.applyQuaternion(this.car.quaternion);
+                lookTarget.add(lookDirection);
+                this.camera.lookAt(lookTarget);
                 break;
             case 2: // Felülnézet
-                this.camera.position.set(0, 20, 5);
+                this.camera.position.set(this.car.position.x, 20, this.car.position.z + 5);
                 this.camera.lookAt(this.car.position);
                 break;
         }
@@ -484,15 +527,18 @@ class Lotus3DRacing {
     }
     
     handleInput() {
-        // Gyorsítás
+        const deltaTime = 0.016; // ~60 FPS
+        
+        // Gyorsítás - JAVÍTOTT LOGIKA
         if (this.keys['KeyW'] || this.keys['ArrowUp']) {
             this.gameState.speed = Math.min(
                 this.gameState.speed + this.gameState.acceleration,
                 this.gameState.maxSpeed
             );
         } else {
+            // Természetes lassulás
             this.gameState.speed = Math.max(
-                this.gameState.speed - this.gameState.deceleration * 0.5,
+                this.gameState.speed - this.gameState.deceleration * 0.3,
                 0
             );
         }
@@ -513,71 +559,76 @@ class Lotus3DRacing {
             );
         }
         
-        // Kormányozás
+        // Kormányozás - csak mozgás közben
+        const speedFactor = Math.max(this.gameState.speed / this.gameState.maxSpeed, 0.1);
+        
         if (this.keys['KeyA'] || this.keys['ArrowLeft']) {
             this.gameState.turnSpeed = Math.max(
-                this.gameState.turnSpeed - 0.002,
-                -this.gameState.maxTurnSpeed
+                this.gameState.turnSpeed - 0.001 * speedFactor,
+                -this.gameState.maxTurnSpeed * speedFactor
             );
         } else if (this.keys['KeyD'] || this.keys['ArrowRight']) {
             this.gameState.turnSpeed = Math.min(
-                this.gameState.turnSpeed + 0.002,
-                this.gameState.maxTurnSpeed
+                this.gameState.turnSpeed + 0.001 * speedFactor,
+                this.gameState.maxTurnSpeed * speedFactor
             );
         } else {
-            this.gameState.turnSpeed *= 0.95;
+            this.gameState.turnSpeed *= 0.9; // Fokozatos visszatérés középre
         }
     }
     
     update() {
-        // Autó mozgás
+        // Autó forgatás
         this.gameState.rotation += this.gameState.turnSpeed;
         this.car.rotation.y = this.gameState.rotation;
         
-        // Pozíció frissítés
-        const speedFactor = this.gameState.speed * 0.01;
-        this.car.position.x += Math.sin(this.gameState.rotation) * speedFactor;
-        this.car.position.z -= Math.cos(this.gameState.rotation) * speedFactor;
-        
-        // Megtett távolság számítása
-        this.gameState.distanceTraveled += speedFactor;
+        // JAVÍTOTT MOZGÁS LOGIKA
+        if (this.gameState.speed > 0) {
+            const speedFactor = this.gameState.speed * 0.02; // Növelt sebesség faktor
+            
+            // Előre mozgás a forgatás irányában
+            const direction = new THREE.Vector3(0, 0, -1);
+            direction.applyQuaternion(this.car.quaternion);
+            direction.multiplyScalar(speedFactor);
+            
+            this.car.position.add(direction);
+            
+            // Távolság számítás
+            this.gameState.distanceTraveled += speedFactor;
+        }
         
         // Kerekek forgatása
+        const wheelRotation = this.gameState.speed * 0.01;
         this.wheels.forEach(wheel => {
-            wheel.rotation.x += speedFactor * 0.1;
+            wheel.rotation.x += wheelRotation;
         });
+        
+        // Első kerekek kormányozás szerinti forgatása
+        if (this.wheels.length >= 2) {
+            this.wheels[0].rotation.y = this.gameState.turnSpeed * 10; // bal első
+            this.wheels[1].rotation.y = this.gameState.turnSpeed * 10; // jobb első
+        }
         
         // Fényszórók frissítése
-        this.headlights.forEach(light => {
-            light.target.position.copy(this.car.position);
-            light.target.position.z -= 10;
+        this.headlights.forEach((light, index) => {
+            const lightDirection = new THREE.Vector3(0, 0, -1);
+            lightDirection.applyQuaternion(this.car.quaternion);
+            light.target.position.copy(this.car.position).add(lightDirection.multiplyScalar(20));
         });
         
-        // Kamera követés
-        if (this.gameState.cameraMode === 0) {
-            const cameraOffset = new THREE.Vector3(0, 3, 8);
-            cameraOffset.applyQuaternion(this.car.quaternion);
-            this.camera.position.copy(this.car.position).add(cameraOffset);
-            this.camera.lookAt(this.car.position);
-        } else if (this.gameState.cameraMode === 1) {
-            const cockpitOffset = new THREE.Vector3(0, 1.2, 1);
-            cockpitOffset.applyQuaternion(this.car.quaternion);
-            this.camera.position.copy(this.car.position).add(cockpitOffset);
-            const lookTarget = this.car.position.clone();
-            lookTarget.z -= 10;
-            this.camera.lookAt(lookTarget);
-        }
+        // Kamera frissítés
+        this.updateCamera();
         
         // Ellenfelek frissítése
         this.updateOpponents();
         
         // Fokozat számítás
-        this.gameState.gear = Math.floor(this.gameState.speed / 50) + 1;
+        this.gameState.gear = Math.floor(this.gameState.speed / 40) + 1;
         this.gameState.gear = Math.min(this.gameState.gear, 6);
         
         // Kör számítás
-        const lapProgress = (this.gameState.distanceTraveled / this.trackData.totalLength) % 1;
-        this.gameState.lap = Math.floor(this.gameState.distanceTraveled / this.trackData.totalLength) + 1;
+        const lapLength = 500;
+        this.gameState.lap = Math.floor(this.gameState.distanceTraveled / lapLength) + 1;
         this.gameState.lap = Math.min(this.gameState.lap, this.gameState.totalLaps);
         
         // Minimap frissítése
@@ -589,13 +640,13 @@ class Lotus3DRacing {
     
     updateOpponents() {
         this.opponents.forEach(opponent => {
-            opponent.mesh.position.z += (this.gameState.speed - opponent.speed) * 0.01;
+            // Egyszerű AI mozgás
+            opponent.mesh.position.z += 0.5;
             
             // Ha túl messze van, újrapozicionáljuk
-            if (opponent.mesh.position.z > this.car.position.z + 50) {
-                opponent.mesh.position.z = this.car.position.z - 200;
-                const randomSegment = this.trackData.segments[Math.floor(Math.random() * this.trackData.segments.length)];
-                opponent.mesh.position.x = randomSegment.x + (Math.random() - 0.5) * 10;
+            if (opponent.mesh.position.z > this.car.position.z + 100) {
+                opponent.mesh.position.z = this.car.position.z - 300;
+                opponent.mesh.position.x = (Math.random() - 0.5) * 15;
             }
         });
     }
@@ -617,6 +668,7 @@ class Lotus3DRacing {
     restart() {
         this.gameState.speed = 0;
         this.gameState.rotation = 0;
+        this.gameState.turnSpeed = 0;
         this.gameState.distanceTraveled = 0;
         this.car.position.set(0, 0.5, 0);
         this.car.rotation.set(0, 0, 0);
