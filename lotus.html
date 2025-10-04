@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lotus F1 Racing</title>
+    <title>Lotus F1 Racing 3D</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
     <div class="game-container">
@@ -13,18 +14,24 @@
             <div class="lap">Kör: <span id="lap">1</span>/3</div>
             <div class="time">Idő: <span id="time">00:00</span></div>
             <div class="position">Pozíció: <span id="position">1</span>/5</div>
+            <div class="gear">Fokozat: <span id="gear">1</span></div>
         </div>
         
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="gameContainer"></div>
         
         <div class="controls">
             <div class="instructions">
-                <p>Irányítás: ←→ kormányozás, ↑ gyorsítás, ↓ fékezés</p>
-                <p>SPACE: Újraindítás</p>
+                <p>Irányítás: WASD vagy nyilak</p>
+                <p>SPACE: Kézifék | R: Újraindítás</p>
+                <p>C: Kamera váltás</p>
             </div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="loading-text">Betöltés...</div>
         </div>
     </div>
     
-    <script src="lotus.js"></script>
+    <script src="lotus3d.js"></script>
 </body>
 </html>
