@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lotus Racing - Amiga Style</title>
+    <title>Lotus Esprit Turbo Challenge</title>
     <style>
         * {
             margin: 0;
@@ -13,7 +13,7 @@
         
         body {
             font-family: 'Courier New', monospace;
-            background: linear-gradient(45deg, #000033, #330033, #003333);
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
             overflow: hidden;
             display: flex;
             justify-content: center;
@@ -23,28 +23,28 @@
         
         #gameContainer {
             position: relative;
-            border: 3px solid #00FFFF;
-            border-radius: 10px;
+            border: 4px solid #FFD700;
+            border-radius: 12px;
             background: #000;
             box-shadow: 
-                0 0 20px #00FFFF,
-                inset 0 0 20px rgba(0, 255, 255, 0.1);
+                0 0 30px #FFD700,
+                inset 0 0 30px rgba(255, 215, 0, 0.1);
         }
         
         canvas {
             display: block;
-            border-radius: 7px;
+            border-radius: 8px;
         }
         
         .controls {
             position: absolute;
-            bottom: -60px;
+            bottom: -70px;
             left: 50%;
             transform: translateX(-50%);
-            color: #00FFFF;
+            color: #FFD700;
             text-align: center;
-            font-size: 12px;
-            text-shadow: 0 0 10px #00FFFF;
+            font-size: 14px;
+            text-shadow: 0 0 10px #FFD700;
             white-space: nowrap;
         }
         
@@ -53,58 +53,70 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: #FF00FF;
-            font-size: 18px;
-            text-shadow: 0 0 15px #FF00FF;
-            animation: amigaBlink 0.8s infinite;
+            color: #00FFFF;
+            font-size: 20px;
+            text-shadow: 0 0 20px #00FFFF;
+            animation: lotus90sBlink 1.2s infinite;
         }
         
-        @keyframes amigaBlink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0.3; }
+        @keyframes lotus90sBlink {
+            0%, 60% { opacity: 1; }
+            61%, 100% { opacity: 0.4; }
         }
         
         .title {
             position: absolute;
-            top: -50px;
+            top: -60px;
             left: 50%;
             transform: translateX(-50%);
-            color: #FF8C00;
-            font-size: 24px;
+            color: #FF4500;
+            font-size: 28px;
             font-weight: bold;
             text-shadow: 
-                0 0 10px #FF8C00,
-                2px 2px 0px #000;
-            letter-spacing: 3px;
+                0 0 15px #FF4500,
+                3px 3px 0px #000;
+            letter-spacing: 4px;
         }
         
-        .amiga-border {
+        .subtitle {
             position: absolute;
-            top: -5px;
-            left: -5px;
-            right: -5px;
-            bottom: -5px;
-            border: 2px solid #888;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00FFFF;
+            font-size: 14px;
+            text-shadow: 0 0 10px #00FFFF;
+            letter-spacing: 2px;
+        }
+        
+        .retro-border {
+            position: absolute;
+            top: -8px;
+            left: -8px;
+            right: -8px;
+            bottom: -8px;
+            border: 3px solid #888;
             border-top-color: #fff;
             border-left-color: #fff;
-            border-radius: 12px;
+            border-radius: 16px;
             pointer-events: none;
         }
     </style>
 </head>
 <body>
-    <div class="title">🏁 LOTUS RACING 🏁</div>
+    <div class="title">🏎️ LOTUS ESPRIT 🏎️</div>
+    <div class="subtitle">TURBO CHALLENGE</div>
     
     <div id="gameContainer">
-        <div class="amiga-border"></div>
+        <div class="retro-border"></div>
         <div class="loading" id="loading">LOADING LOTUS RACING...</div>
         
         <div class="controls">
             <div>🎮 WASD / ARROW KEYS - DRIVE | R - RESTART 🎮</div>
-            <div>Authentic Amiga 500/1200 Experience</div>
+            <div>Authentic 90s Amiga/PC Racing Experience</div>
         </div>
     </div>
     
-    <script src="amiga-lotus.js"></script>
+    <script src="lotus90s.js"></script>
 </body>
 </html>
