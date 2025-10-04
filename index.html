@@ -10,46 +10,64 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            background-color: #f0f0f0;
-        }
-        #map {
-            height: 700px; /* Térkép magassága */
-            width: 90%; /* Térkép szélessége */
-            max-width: 1000px;
-            border: 2px solid #333;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            margin-bottom: 20px;
-        }
-        .info {
-            margin-top: 10px;
-            font-size: 1.1em;
-            color: #333;
-            text-align: center;
-        }
-        .info kbd {
-            background-color: #eee;
-            border-radius: 3px;
-            border: 1px solid #b4b4b4;
-            box-shadow: 0 1px 1px rgba(0, 0, 0, .2), 0 2px 0 0 rgba(255, 255, 255, .7) inset;
-            color: #333;
-            display: inline-block;
-            font-family: monospace;
-            font-size: .85em;
-            font-weight: 700;
-            line-height: 1;
-            padding: 2px 4px;
-            white-space: nowrap;
-        }
+body {
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    font-family: 'Arial', sans-serif;
+    overflow: hidden;
+}
+
+.game-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100vh;
+    padding: 20px;
+}
+
+.hud {
+    display: flex;
+    justify-content: space-around;
+    width: 800px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.hud div {
+    text-align: center;
+    min-width: 120px;
+}
+
+#gameCanvas {
+    border: 3px solid #fff;
+    border-radius: 10px;
+    background: #2d5a27;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.controls {
+    margin-top: 10px;
+    text-align: center;
+    color: white;
+}
+
+.instructions {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.instructions p {
+    margin: 5px 0;
+}
+
     </style>
 </head>
 <body>
