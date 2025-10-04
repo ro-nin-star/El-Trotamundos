@@ -75,6 +75,7 @@ class OutrunStyleRacing {
         try {
             // Játékos autó - ide add meg a saját képed
             this.assets.player = await this.loadImage('assets/player-car.png');
+            console.log('Játékos autó betöltve:', this.assets.player);
             
             // Ellenfél autók
             this.assets.enemies = [
@@ -94,11 +95,17 @@ class OutrunStyleRacing {
             ];
             
         } catch (error) {
-            console.log('Asset-ek nem találhatók, placeholder-ek használata');
+            console.log('Asset-ek nem találhatók, placeholder-ek használata:', error);
             this.createPlaceholderAssets();
         }
         
-        console.log('Asset-ek betöltve');
+        // Ellenőrizzük, hogy van-e játékos autó
+        if (!this.assets.player) {
+            console.error('Nincs játékos autó asset!');
+            this.assets.player = this.createCarPlaceholder('#FF0000');
+        }
+        
+        console.log('Asset-ek betöltve, játékos autó:', this.assets.player);
     }
     
     async loadImage(src) {
@@ -131,20 +138,35 @@ class OutrunStyleRacing {
         canvas.height = 64;
         const ctx = canvas.getContext('2d');
         
-        // Egyszerű autó alakzat
+        // Háttér törlése
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Autó test (nagyobb, láthatóbb)
         ctx.fillStyle = color;
-        ctx.fillRect(8, 8, 16, 48);
+        ctx.fillRect(6, 8, 20, 48);
+        
+        // Autó körvonal
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(6, 8, 20, 48);
         
         // Szélvédő
         ctx.fillStyle = '#87CEEB';
-        ctx.fillRect(10, 16, 12, 20);
+        ctx.fillRect(8, 16, 16, 20);
         
-        // Kerekek
+        // Kerekek (nagyobbak)
         ctx.fillStyle = '#000000';
-        ctx.fillRect(4, 12, 6, 8);
-        ctx.fillRect(22, 12, 6, 8);
-        ctx.fillRect(4, 44, 6, 8);
-        ctx.fillRect(22, 44, 6, 8);
+        ctx.fillRect(2, 12, 8, 10);
+        ctx.fillRect(22, 12, 8, 10);
+        ctx.fillRect(2, 42, 8, 10);
+        ctx.fillRect(22, 42, 8, 10);
+        
+        // Fényszórók
+        ctx.fillStyle = '#FFFF00';
+        ctx.fillRect(8, 8, 6, 4);
+        ctx.fillRect(18, 8, 6, 4);
+        
+        console.log('Placeholder autó létrehozva:', canvas.width, 'x', canvas.height);
         
         return canvas;
     }
@@ -340,18 +362,19 @@ class OutrunStyleRacing {
     }
     
     render() {
+        // Teljes canvas törlése
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
         // Háttér
         this.renderBackground();
         
-        // Pálya
+        // Pálya (háttérben)
         this.renderRoad();
         
-        // Játékos autó
+        // Játékos autó (előtérben, utoljára rajzoljuk)
         this.renderPlayerCar();
         
-        // HUD
+        // HUD (legfelül)
         this.renderHUD();
     }
     
@@ -444,27 +467,47 @@ class OutrunStyleRacing {
     }
     
     renderPlayerCar() {
-        if (!this.assets.player) return;
+        if (!this.assets.player) {
+            console.log('Nincs játékos autó asset betöltve');
+            return;
+        }
         
-        const carX = (this.canvas.width / 2) - (this.assets.player.width * this.scale / 2);
-        const carY = this.canvas.height - (this.assets.player.height * this.scale) - 20;
+        // Debug információk
+        console.log('Player car rendering:', {
+            asset: this.assets.player,
+            width: this.assets.player.width,
+            height: this.assets.player.height
+        });
+        
+        const carWidth = this.assets.player.width * this.scale;
+        const carHeight = this.assets.player.height * this.scale;
+        const carX = (this.canvas.width / 2) - (carWidth / 2);
+        const carY = this.canvas.height - carHeight - 20;
         
         // Kanyarodás animáció
         const tilt = this.game.playerX * 0.1;
         
         this.ctx.save();
-        this.ctx.translate(carX + this.assets.player.width * this.scale / 2, carY + this.assets.player.height * this.scale / 2);
+        
+        // Transzformáció a kocsi közepére
+        this.ctx.translate(carX + carWidth / 2, carY + carHeight / 2);
         this.ctx.rotate(tilt);
         
+        // Autó rajzolása
         this.ctx.drawImage(
             this.assets.player,
-            -this.assets.player.width * this.scale / 2,
-            -this.assets.player.height * this.scale / 2,
-            this.assets.player.width * this.scale,
-            this.assets.player.height * this.scale
+            -carWidth / 2,
+            -carHeight / 2,
+            carWidth,
+            carHeight
         );
         
         this.ctx.restore();
+        
+        // Debug: keret rajzolása az autó körül
+        this.ctx.strokeStyle = 'red';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(carX, carY, carWidth, carHeight);
     }
     
     renderHUD() {
