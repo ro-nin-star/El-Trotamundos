@@ -4,88 +4,43 @@ class LotusRacing {
         this.ctx = this.canvas.getContext('2d');
         
         // Játék állapot
-        this.gameState = 'playing'; // 'playing', 'finished'
-        this.startTime = Date.now();
-        this.currentLap = 1;
-        this.maxLaps = 3;
-        
-        // Játékos autó (Lotus)
-        this.player = {
-            x: 400,
-            y: 500,
-            width: 30,
-            height: 60,
-            angle: 0,
+        this.gameState = {
             speed: 0,
-            maxSpeed: 8,
-            acceleration: 0.3,
-            friction: 0.95,
-            turnSpeed: 0.05
+            maxSpeed: 200,
+            acceleration: 0.5,
+            deceleration: 0.8,
+            turnSpeed: 0,
+            maxTurnSpeed: 3,
+            position: { x: 400, y: 500 },
+            roadPosition: 0,
+            lap: 1,
+            totalLaps: 3,
+            startTime: Date.now(),
+            playerPosition: 1
+        };
+        
+        // Pálya adatok
+        this.road = {
+            width: 200,
+            segments: [],
+            curves: [0, 0.5, -0.3, 0.8, -0.5, 0.2, -0.7, 0.4]
         };
         
         // Ellenfelek
         this.opponents = [];
         this.initOpponents();
         
-        // Pálya pontok (egyszerű ovál)
-        this.trackPoints = this.generateTrack();
-        this.checkpoints = this.generateCheckpoints();
-        this.playerCheckpoint = 0;
-        
-        // Vezérlés
+        // Billentyűzet kezelés
         this.keys = {};
         this.setupControls();
         
-        // Játék indítása
+        // Pálya generálás
+        this.generateRoad();
+        
+        // Játék indítás
         this.gameLoop();
     }
-
-    // Ellenfelek inicializálása
-    initOpponents() {
-        const colors = ['#ff0000', '#0000ff', '#ffff00', '#ff8800'];
-        for (let i = 0; i < 4; i++) {
-            this.opponents.push({
-                x: 380 + i * 40,
-                y: 520 + i * 20,
-                width: 25,
-                height: 50,
-                angle: 0,
-                speed: 2 + Math.random() * 2,
-                color: colors[i],
-                checkpoint: 0,
-                lap: 1
-            });
-        }
-    }
-
-    // Pálya generálása (egyszerű ovál)
-    generateTrack() {
-        const points = [];
-        const centerX = 400;
-        const centerY = 300;
-        const radiusX = 300;
-        const radiusY = 200;
-        
-        for (let i = 0; i < 360; i += 5) {
-            const angle = (i * Math.PI) / 180;
-            points.push({
-                x: centerX + Math.cos(angle) * radiusX,
-                y: centerY + Math.sin(angle) * radiusY
-            });
-        }
-        return points;
-    }
-
-    // Ellenőrző pontok generálása
-    generateCheckpoints() {
-        const checkpoints = [];
-        for (let i = 0; i < this.trackPoints.length; i += 10) {
-            checkpoints.push(this.trackPoints[i]);
-        }
-        return checkpoints;
-    }
-
-    // Vezérlés beállítása
+    
     setupControls() {
         document.addEventListener('keydown', (e) => {
             this.keys[e.code] = true;
@@ -93,223 +48,230 @@ class LotusRacing {
         
         document.addEventListener('keyup', (e) => {
             this.keys[e.code] = false;
-            
-            if (e.code === 'Space') {
-                this.restart();
-            }
         });
     }
-
-    // Játékos frissítése
-    updatePlayer() {
-        if (this.gameState !== 'playing') return;
-        
-        // Gyorsítás/fékezés
+    
+    generateRoad() {
+        // Egyszerű pálya generálás kanyarokkal
+        for (let i = 0; i < 1000; i++) {
+            const curveIndex = Math.floor(i / 125) % this.road.curves.length;
+            this.road.segments.push({
+                curve: this.road.curves[curveIndex],
+                y: i * 10,
+                color: i % 20 < 10 ? '#666' : '#555'
+            });
+        }
+    }
+    
+    initOpponents() {
+        for (let i = 0; i < 4; i++) {
+            this.opponents.push({
+                x: 350 + Math.random() * 100,
+                y: -100 - i * 150,
+                speed: 80 + Math.random() * 40,
+                lane: Math.random() * 0.6 - 0.3,
+                color: `hsl(${Math.random() * 360}, 70%, 50%)`
+            });
+        }
+    }
+    
+    handleInput() {
+        // Gyorsítás
         if (this.keys['ArrowUp']) {
-            this.player.speed = Math.min(this.player.speed + this.player.acceleration, this.player.maxSpeed);
-        } else if (this.keys['ArrowDown']) {
-            this.player.speed = Math.max(this.player.speed - this.player.acceleration * 2, -this.player.maxSpeed * 0.5);
+            this.gameState.speed = Math.min(
+                this.gameState.speed + this.gameState.acceleration,
+                this.gameState.maxSpeed
+            );
         } else {
-            this.player.speed *= this.player.friction;
+            this.gameState.speed = Math.max(
+                this.gameState.speed - this.gameState.deceleration,
+                0
+            );
+        }
+        
+        // Fékezés
+        if (this.keys['ArrowDown']) {
+            this.gameState.speed = Math.max(
+                this.gameState.speed - this.gameState.deceleration * 2,
+                0
+            );
         }
         
         // Kormányozás
         if (this.keys['ArrowLeft']) {
-            this.player.angle -= this.player.turnSpeed * Math.abs(this.player.speed);
-        }
-        if (this.keys['ArrowRight']) {
-            this.player.angle += this.player.turnSpeed * Math.abs(this.player.speed);
+            this.gameState.turnSpeed = Math.max(
+                this.gameState.turnSpeed - 0.2,
+                -this.gameState.maxTurnSpeed
+            );
+        } else if (this.keys['ArrowRight']) {
+            this.gameState.turnSpeed = Math.min(
+                this.gameState.turnSpeed + 0.2,
+                this.gameState.maxTurnSpeed
+            );
+        } else {
+            this.gameState.turnSpeed *= 0.9; // Fokozatos visszatérés középre
         }
         
-        // Pozíció frissítése
-        this.player.x += Math.sin(this.player.angle) * this.player.speed;
-        this.player.y -= Math.cos(this.player.angle) * this.player.speed;
+        // Újraindítás
+        if (this.keys['Space']) {
+            this.restart();
+        }
+    }
+    
+    update() {
+        // Pozíció frissítés
+        this.gameState.roadPosition += this.gameState.speed * 0.01;
+        this.gameState.position.x += this.gameState.turnSpeed;
         
         // Pálya határok
-        this.player.x = Math.max(50, Math.min(750, this.player.x));
-        this.player.y = Math.max(50, Math.min(550, this.player.y));
+        this.gameState.position.x = Math.max(250, Math.min(550, this.gameState.position.x));
         
-        // Checkpoint ellenőrzés
-        this.checkPlayerCheckpoint();
-    }
-
-    // Ellenfelek frissítése (egyszerű AI)
-    updateOpponents() {
-        this.opponents.forEach(opponent => {
-            if (opponent.lap <= this.maxLaps) {
-                // Egyszerű AI: kövesd a pályát
-                const targetPoint = this.trackPoints[Math.floor(opponent.checkpoint * 10) % this.trackPoints.length];
-                const dx = targetPoint.x - opponent.x;
-                const dy = targetPoint.y - opponent.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                if (distance > 20) {
-                    opponent.x += (dx / distance) * opponent.speed;
-                    opponent.y += (dy / distance) * opponent.speed;
-                } else {
-                    opponent.checkpoint = (opponent.checkpoint + 1) % this.checkpoints.length;
-                    if (opponent.checkpoint === 0) {
-                        opponent.lap++;
-                    }
-                }
-            }
-        });
-    }
-
-    // Játékos checkpoint ellenőrzése
-    checkPlayerCheckpoint() {
-        const nextCheckpoint = this.checkpoints[this.playerCheckpoint];
-        const dx = this.player.x - nextCheckpoint.x;
-        const dy = this.player.y - nextCheckpoint.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        // Ellenfelek frissítése
+        this.updateOpponents();
         
-        if (distance < 50) {
-            this.playerCheckpoint = (this.playerCheckpoint + 1) % this.checkpoints.length;
-            if (this.playerCheckpoint === 0) {
-                this.currentLap++;
-                if (this.currentLap > this.maxLaps) {
-                    this.gameState = 'finished';
-                }
-            }
+        // Kör számítás
+        const currentLap = Math.floor(this.gameState.roadPosition / 100) + 1;
+        if (currentLap > this.gameState.lap) {
+            this.gameState.lap = Math.min(currentLap, this.gameState.totalLaps);
         }
     }
-
-    // Pozíció számítása
-    calculatePosition() {
-        let position = 1;
+    
+    updateOpponents() {
         this.opponents.forEach(opponent => {
-            if (opponent.lap > this.currentLap || 
-                (opponent.lap === this.currentLap && opponent.checkpoint > this.playerCheckpoint)) {
-                position++;
+            opponent.y += (this.gameState.speed - opponent.speed) * 0.1;
+            
+            // Ha túl messze van, újrapozicionáljuk
+            if (opponent.y > 700) {
+                opponent.y = -200;
+                opponent.x = 350 + Math.random() * 100;
+                opponent.speed = 80 + Math.random() * 40;
             }
         });
-        return position;
     }
-
-    // Rajzolás
-    draw() {
+    
+    render() {
         // Háttér törlése
-        this.ctx.fillStyle = '#2d5a27';
+        this.ctx.fillStyle = '#87CEEB';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Pálya rajzolása
-        this.drawTrack();
+        // Út renderelése
+        this.renderRoad();
         
-        // Checkpointok rajzolása
-        this.drawCheckpoints();
+        // Ellenfelek renderelése
+        this.renderOpponents();
         
-        // Autók rajzolása
-        this.drawCar(this.player, '#00ff00'); // Lotus zöld
-        this.opponents.forEach(opponent => {
-            this.drawCar(opponent, opponent.color);
-        });
+        // Játékos autó renderelése
+        this.renderPlayer();
         
         // HUD frissítése
         this.updateHUD();
     }
-
-    // Pálya rajzolása
-    drawTrack() {
-        this.ctx.strokeStyle = '#ffffff';
-        this.ctx.lineWidth = 3;
-        this.ctx.beginPath();
+    
+    renderRoad() {
+        const segmentHeight = 3;
+        const roadWidth = this.road.width;
         
-        for (let i = 0; i < this.trackPoints.length; i++) {
-            const point = this.trackPoints[i];
-            if (i === 0) {
-                this.ctx.moveTo(point.x, point.y);
-            } else {
-                this.ctx.lineTo(point.x, point.y);
+        for (let i = 0; i < this.canvas.height / segmentHeight + 1; i++) {
+            const segmentIndex = Math.floor(this.gameState.roadPosition + i);
+            const segment = this.road.segments[segmentIndex % this.road.segments.length];
+            
+            if (!segment) continue;
+            
+            const y = this.canvas.height - i * segmentHeight;
+            const curve = segment.curve * (i * 0.1);
+            const centerX = this.canvas.width / 2 + curve * 50;
+            
+            // Út
+            this.ctx.fillStyle = segment.color;
+            this.ctx.fillRect(
+                centerX - roadWidth / 2,
+                y,
+                roadWidth,
+                segmentHeight + 1
+            );
+            
+            // Középső vonal
+            if (Math.floor(this.gameState.roadPosition + i) % 8 < 4) {
+                this.ctx.fillStyle = '#fff';
+                this.ctx.fillRect(centerX - 2, y, 4, segmentHeight + 1);
             }
+            
+            // Szélső vonalak
+            this.ctx.fillStyle = '#fff';
+            this.ctx.fillRect(centerX - roadWidth / 2 - 3, y, 3, segmentHeight + 1);
+            this.ctx.fillRect(centerX + roadWidth / 2, y, 3, segmentHeight + 1);
         }
-        this.ctx.closePath();
-        this.ctx.stroke();
-        
-        // Belső pálya
-        this.ctx.strokeStyle = '#cccccc';
-        this.ctx.lineWidth = 1;
-        this.ctx.beginPath();
-        for (let i = 0; i < this.trackPoints.length; i++) {
-            const point = this.trackPoints[i];
-            const innerX = 400 + (point.x - 400) * 0.6;
-            const innerY = 300 + (point.y - 300) * 0.6;
-            if (i === 0) {
-                this.ctx.moveTo(innerX, innerY);
-            } else {
-                this.ctx.lineTo(innerX, innerY);
-            }
-        }
-        this.ctx.closePath();
-        this.ctx.stroke();
     }
-
-    // Checkpointok rajzolása
-    drawCheckpoints() {
-        this.checkpoints.forEach((checkpoint, index) => {
-            this.ctx.fillStyle = index === this.playerCheckpoint ? '#ffff00' : '#ffffff';
-            this.ctx.beginPath();
-            this.ctx.arc(checkpoint.x, checkpoint.y, 8, 0, Math.PI * 2);
-            this.ctx.fill();
-        });
-    }
-
-    // Autó rajzolása
-    drawCar(car, color) {
-        this.ctx.save();
-        this.ctx.translate(car.x, car.y);
-        this.ctx.rotate(car.angle);
+    
+    renderPlayer() {
+        const playerX = this.gameState.position.x;
+        const playerY = this.gameState.position.y;
         
         // Autó test
-        this.ctx.fillStyle = color;
-        this.ctx.fillRect(-car.width/2, -car.height/2, car.width, car.height);
+        this.ctx.fillStyle = '#ff0000';
+        this.ctx.fillRect(playerX - 15, playerY - 30, 30, 60);
         
         // Autó részletek
-        this.ctx.fillStyle = '#000000';
-        this.ctx.fillRect(-car.width/2 + 5, -car.height/2 + 5, car.width - 10, 10);
-        this.ctx.fillRect(-car.width/2 + 5, car.height/2 - 15, car.width - 10, 10);
+        this.ctx.fillStyle = '#000';
+        this.ctx.fillRect(playerX - 10, playerY - 20, 20, 15);
+        this.ctx.fillRect(playerX - 10, playerY + 5, 20, 15);
         
-        this.ctx.restore();
+        // Kerekek
+        this.ctx.fillStyle = '#333';
+        this.ctx.fillRect(playerX - 18, playerY - 25, 6, 15);
+        this.ctx.fillRect(playerX + 12, playerY - 25, 6, 15);
+        this.ctx.fillRect(playerX - 18, playerY + 10, 6, 15);
+        this.ctx.fillRect(playerX + 12, playerY + 10, 6, 15);
     }
-
-    // HUD frissítése
+    
+    renderOpponents() {
+        this.opponents.forEach(opponent => {
+            if (opponent.y > -50 && opponent.y < 650) {
+                // Ellenfél autó
+                this.ctx.fillStyle = opponent.color;
+                this.ctx.fillRect(opponent.x - 12, opponent.y - 25, 24, 50);
+                
+                // Kerekek
+                this.ctx.fillStyle = '#333';
+                this.ctx.fillRect(opponent.x - 15, opponent.y - 20, 4, 10);
+                this.ctx.fillRect(opponent.x + 11, opponent.y - 20, 4, 10);
+                this.ctx.fillRect(opponent.x - 15, opponent.y + 10, 4, 10);
+                this.ctx.fillRect(opponent.x + 11, opponent.y + 10, 4, 10);
+            }
+        });
+    }
+    
     updateHUD() {
-        const speed = Math.abs(this.player.speed * 20).toFixed(0);
-        const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
-        const minutes = Math.floor(elapsed / 60);
-        const seconds = elapsed % 60;
-        const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        const position = this.calculatePosition();
+        document.getElementById('speed').textContent = Math.round(this.gameState.speed);
+        document.getElementById('lap').textContent = this.gameState.lap;
         
-        document.getElementById('speed').textContent = speed;
-        document.getElementById('lap').textContent = this.currentLap;
-        document.getElementById('time').textContent = timeStr;
-        document.getElementById('position').textContent = position;
+        const elapsed = (Date.now() - this.gameState.startTime) / 1000;
+        const minutes = Math.floor(elapsed / 60);
+        const seconds = Math.floor(elapsed % 60);
+        document.getElementById('time').textContent = 
+            `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        
+        document.getElementById('position').textContent = this.gameState.playerPosition;
     }
-
-    // Újraindítás
+    
     restart() {
-        this.player.x = 400;
-        this.player.y = 500;
-        this.player.angle = 0;
-        this.player.speed = 0;
-        this.playerCheckpoint = 0;
-        this.currentLap = 1;
-        this.gameState = 'playing';
-        this.startTime = Date.now();
+        this.gameState.speed = 0;
+        this.gameState.roadPosition = 0;
+        this.gameState.position.x = 400;
+        this.gameState.lap = 1;
+        this.gameState.startTime = Date.now();
         this.initOpponents();
     }
-
-    // Játék ciklus
+    
     gameLoop() {
-        this.updatePlayer();
-        this.updateOpponents();
-        this.draw();
-        
+        this.handleInput();
+        this.update();
+        this.render();
         requestAnimationFrame(() => this.gameLoop());
     }
 }
 
 // Játék indítása
-document.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('load', () => {
     new LotusRacing();
 });
