@@ -1346,13 +1346,13 @@ renderLoadingScreen() {
     this.ctx.textAlign = 'center';
     this.ctx.strokeStyle = '#000000';
     this.ctx.lineWidth = 4;
-    this.ctx.strokeText('RACING', this.canvas.width / 2, 200);
-    this.ctx.fillText('RACING', this.canvas.width / 2, 200);
+    this.ctx.strokeText('RACSING', this.canvas.width / 2, 200);
+    this.ctx.fillText('RACSING', this.canvas.width / 2, 200);
     
     this.ctx.fillStyle = '#FF4444';
     this.ctx.font = 'bold 72px monospace';
-    this.ctx.strokeText('LOTUS', this.canvas.width / 2, 300);
-    this.ctx.fillText('LOTUS', this.canvas.width / 2, 300);
+    this.ctx.strokeText('TECHDEMO', this.canvas.width / 2, 300);
+    this.ctx.fillText('TECHDEMO', this.canvas.width / 2, 300);
     
     // Loading szöveg
     this.ctx.fillStyle = '#FFFFFF';
