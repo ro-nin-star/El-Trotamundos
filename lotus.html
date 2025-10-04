@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lótusz Játék</title>
+    <link rel="stylesheet" href="style.css">
+    
+</head>
+<body>
+    <div class="game-container">
+        <h1>Lótusz Játék</h1>
+        <div class="game-info">
+            <div class="player-turn">Jelenlegi játékos: <span id="current-player">1</span></div>
+            <div class="score">
+                <span>Játékos 1: <span id="score1">0</span></span>
+                <span>Játékos 2: <span id="score2">0</span></span>
+            </div>
+        </div>
+        <div id="game-board" class="board"></div>
+        <button id="reset-btn">Új játék</button>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
+        <p>Fejlesztette: A Te Neved</p>
+    </div>
+
+    <!-- Leaflet JS -->
+    <!-- Eltávolítottuk az integrity és crossorigin attribútumokat -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Térkép inicializálása
+        var map = L.map('map').setView([47.1625, 19.5033], 7); // Magyarország középpontja
+
+        // OpenStreetMap csempe hozzáadása
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Játékos marker inicializálása
+        var playerMarker = L.marker([47.1625, 19.5033]).addTo(map);
+
+        // Játékos mozgatása billentyűzettel
+        document.addEventListener('keydown', function(event) {
+            var latLng = playerMarker.getLatLng();
+            var step = 0.1; // Mozgás lépésköze
+
+            switch(event.key) {
+                case 'w':
+                case 'ArrowUp':
+                    latLng.lat += step;
+                    break;
+                case 's':
+                case 'ArrowDown':
+                    latLng.lat -= step;
+                    break;
+                case 'a':
+                case 'ArrowLeft':
+                    latLng.lng -= step;
+                    break;
+                case 'd':
+                case 'ArrowRight':
+                    latLng.lng += step;
+                    break;
+            }
+            playerMarker.setLatLng(latLng);
+            map.panTo(latLng); // Térkép középre helyezése a játékosra
+        });
+    </script>
