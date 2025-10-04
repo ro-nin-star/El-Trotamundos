@@ -3,41 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lotus F1 Racing 3D</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <title>Lotus Racing - Amiga Style</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(45deg, #000033, #330033, #003333);
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        #gameContainer {
+            position: relative;
+            border: 3px solid #00FFFF;
+            border-radius: 10px;
+            background: #000;
+            box-shadow: 
+                0 0 20px #00FFFF,
+                inset 0 0 20px rgba(0, 255, 255, 0.1);
+        }
+        
+        canvas {
+            display: block;
+            border-radius: 7px;
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00FFFF;
+            text-align: center;
+            font-size: 12px;
+            text-shadow: 0 0 10px #00FFFF;
+            white-space: nowrap;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #FF00FF;
+            font-size: 18px;
+            text-shadow: 0 0 15px #FF00FF;
+            animation: amigaBlink 0.8s infinite;
+        }
+        
+        @keyframes amigaBlink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        
+        .title {
+            position: absolute;
+            top: -50px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #FF8C00;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 
+                0 0 10px #FF8C00,
+                2px 2px 0px #000;
+            letter-spacing: 3px;
+        }
+        
+        .amiga-border {
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            right: -5px;
+            bottom: -5px;
+            border: 2px solid #888;
+            border-top-color: #fff;
+            border-left-color: #fff;
+            border-radius: 12px;
+            pointer-events: none;
+        }
+    </style>
 </head>
 <body>
-    <div class="game-container">
-        <div class="hud">
-            <div class="speed">Sebesség: <span id="speed">0</span> km/h</div>
-            <div class="lap">Kör: <span id="lap">1</span>/3</div>
-            <div class="time">Idő: <span id="time">00:00</span></div>
-            <div class="position">Pozíció: <span id="position">1</span>/5</div>
-            <div class="gear">Fokozat: <span id="gear">1</span></div>
-        </div>
-        
-        <!-- Minimap -->
-        <div class="minimap">
-            <canvas id="minimapCanvas" width="200" height="200"></canvas>
-            <div class="minimap-title">TÉRKÉP</div>
-        </div>
-        
-        <div id="gameContainer"></div>
+    <div class="title">🏁 LOTUS RACING 🏁</div>
+    
+    <div id="gameContainer">
+        <div class="amiga-border"></div>
+        <div class="loading" id="loading">LOADING LOTUS RACING...</div>
         
         <div class="controls">
-            <div class="instructions">
-                <p>Irányítás: WASD vagy nyilak</p>
-                <p>SPACE: Kézifék | R: Újraindítás</p>
-                <p>C: Kamera váltás | M: Térkép ki/be</p>
-            </div>
-        </div>
-        
-        <div class="loading" id="loading">
-            <div class="loading-text">Betöltés...</div>
+            <div>🎮 WASD / ARROW KEYS - DRIVE | R - RESTART 🎮</div>
+            <div>Authentic Amiga 500/1200 Experience</div>
         </div>
     </div>
     
-    <script src="lotus3d.js"></script>
+    <script src="amiga-lotus.js"></script>
 </body>
 </html>
