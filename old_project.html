@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valósághű Magyarország Térkép (Leaflet)</title>
+    
+    <!-- Leaflet CSS -->
+    <!-- Eltávolítottuk az integrity és crossorigin attribútumokat -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+    <style>
+body {
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    font-family: 'Arial', sans-serif;
+    overflow: hidden;
+}
+
+.game-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100vh;
+    padding: 20px;
+}
+
+.hud {
+    display: flex;
+    justify-content: space-around;
+    width: 800px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.hud div {
+    text-align: center;
+    min-width: 120px;
+}
+
+#gameCanvas {
+    border: 3px solid #fff;
+    border-radius: 10px;
+    background: #2d5a27;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.controls {
+    margin-top: 10px;
+    text-align: center;
+    color: white;
+}
+
+.instructions {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.instructions p {
+    margin: 5px 0;
+}
+
+    </style>
+</head>
+<body>
+    <h1>Interaktív Magyarország Térkép</h1>
+    <div id="map"></div>
+    <div class="info">
+        <p>Használd a <kbd>W</kbd>, <kbd>A</kbd>, <kbd>S</kbd>, <kbd>D</kbd> vagy a nyíl gombokat a játékos mozgatásához.</p>
+        <p>A térkép zoomolható és mozgatható egérrel/érintőképernyővel.</p>
+    </div>
+
+    <!-- Leaflet JavaScript -->
+    <!-- Eltávolítottuk az integrity és crossorigin attribútumokat -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Saját script -->
+    <script src="map.js"></script>
+</body>
+</html>
