@@ -47,7 +47,8 @@ class Game {
             this.setupEventListeners();
             
             // ⭐ TÉRKÉP ÉS PÁLYA
-            this.gameEngine.setMapImage('https://static.valasztas.hu/parval2002/onkweb/tart/inf/terkep2/borsod.jpg');
+            this.gameEngine.setMapImage('assets/map-baz.png');
+
             await this.gameEngine.buildTrack(this.assetLoader);
             
             // ⭐ JÁTÉK KÉSZ
