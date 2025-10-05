@@ -10,9 +10,9 @@ export class AssetLoader {
         
         const assetList = [
             { name: 'player', src: 'assets/player-car.png' },
-            { name: 'enemy1', src: 'assets/enemy-car-1.png' },
-            { name: 'enemy2', src: 'assets/enemy-car-2.png' },
-            { name: 'enemy3', src: 'assets/enemy-car-3.png' },
+            { name: 'enemy1', src: 'assets/enemy-car1.png' },
+            { name: 'enemy2', src: 'assets/enemy-car2.png' },
+            { name: 'enemy3', src: 'assets/enemy-car3.png' },
             { name: 'steeringWheel', src: 'assets/steering-wheel.png' } // ⭐ KORMÁNY ASSET
         ];
         
