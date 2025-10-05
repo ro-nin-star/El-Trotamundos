@@ -1,6 +1,6 @@
 import { CarPhysics } from '../physics/CarPhysics.js';
 import { TrackBuilder } from '../physics/TrackBuilder.js';
-import { MiniMap } from '../ui/MiniMap.js'; 
+import { MiniMap } from '../ui/Minimap.js'; 
 
 export class GameEngine {
     constructor() {
