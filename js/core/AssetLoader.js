@@ -29,28 +29,26 @@ export class AssetLoader {
                 try {
                     const enemySprite = await this.loadImage(file);
                     this.assets.enemies.push(enemySprite);
+                    console.log(`✅ Ellenfél autó betöltve: ${file}`);
                 } catch (error) {
-                    console.warn(`⚠️ Nem sikerült betölteni: ${file}, fallback sprite készítése...`);
-                    // Fallback: generált sprite ha a kép nem található
-                    this.assets.enemies.push(this.createFallbackEnemySprite(this.assets.enemies.length));
+                    console.warn(`⚠️ Nem sikerült betölteni: ${file}`);
+                    // ⭐ NEM HOZUNK LÉTRE FALLBACK SPRITE-OT!
+                    // Csak a ténylegesen betöltött képeket használjuk
                 }
             }
             
-            console.log('✅ Asset-ek betöltve:', this.assets.enemies.length, 'ellenfél autó');
+            // ⭐ ELLENŐRZÉS: VAN-E BETÖLTÖTT ELLENFÉL AUTÓ
+            if (this.assets.enemies.length === 0) {
+                console.warn('❌ Egyetlen ellenfél autó sem töltődött be! Ellenőrizd a fájlokat.');
+                return false;
+            }
+            
+            console.log('✅ Asset-ek sikeresen betöltve:', this.assets.enemies.length, 'ellenfél autó');
             return true;
             
         } catch (error) {
-            console.warn('⚠️ Képbetöltési hiba, fallback sprite-ok használata:', error);
-            // Teljes fallback
-            this.assets.player = this.createPlayerCarSprite();
-            this.assets.enemies = [
-                this.createFallbackEnemySprite(0),
-                this.createFallbackEnemySprite(1),
-                this.createFallbackEnemySprite(2),
-                this.createFallbackEnemySprite(3),
-                this.createFallbackEnemySprite(4)
-            ];
-            return true;
+            console.error('❌ Kritikus hiba az asset betöltésben:', error);
+            return false;
         }
     }
     
@@ -59,7 +57,7 @@ export class AssetLoader {
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.onload = () => {
-                console.log(`✅ Betöltve: ${src}`);
+                console.log(`✅ Sikeres betöltés: ${src}`);
                 resolve(img);
             };
             img.onerror = () => {
@@ -74,74 +72,24 @@ export class AssetLoader {
         return this.assets;
     }
     
-    // ⭐ RANDOM ELLENFÉL SPRITE VÁLASZTÁS
+    // ⭐ RANDOM ELLENFÉL SPRITE VÁLASZTÁS (CSAK BETÖLTÖTT KÉPEKBŐL)
     getRandomEnemySprite() {
         if (this.assets.enemies.length > 0) {
             const randomIndex = Math.floor(Math.random() * this.assets.enemies.length);
             return this.assets.enemies[randomIndex];
         }
-        return this.createFallbackEnemySprite(0);
+        
+        console.warn('⚠️ Nincs betöltött ellenfél sprite!');
+        return null; // ⭐ NULL VISSZAADÁSA HA NINCS KÉP
     }
     
-    // FALLBACK SPRITE-OK (ha a képek nem találhatók)
-    createPlayerCarSprite() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 40;
-        canvas.height = 20;
-        const ctx = canvas.getContext('2d');
-        
-        // Piros autó
-        ctx.fillStyle = '#FF0000';
-        ctx.fillRect(8, 2, 24, 16);
-        
-        // Szélvédő
-        ctx.fillStyle = '#87CEEB';
-        ctx.fillRect(10, 4, 20, 6);
-        
-        // Lámpák
-        ctx.fillStyle = '#FF4444';
-        ctx.fillRect(6, 6, 4, 8);
-        ctx.fillRect(30, 6, 4, 8);
-        
-        // Kerekek
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(4, 2, 6, 4);
-        ctx.fillRect(30, 2, 6, 4);
-        ctx.fillRect(4, 14, 6, 4);
-        ctx.fillRect(30, 14, 6, 4);
-        
-        return canvas;
+    // ⭐ ELLENŐRZÉS: VANNAK-E BETÖLTÖTT ELLENFÉL AUTÓK
+    hasEnemySprites() {
+        return this.assets.enemies.length > 0;
     }
     
-    createFallbackEnemySprite(index) {
-        const canvas = document.createElement('canvas');
-        canvas.width = 40;
-        canvas.height = 20;
-        const ctx = canvas.getContext('2d');
-        
-        const colors = ['#0000FF', '#00FF00', '#FF00FF', '#FFFF00', '#FF8800', '#8800FF'];
-        const color = colors[index % colors.length];
-        
-        // Autó test
-        ctx.fillStyle = color;
-        ctx.fillRect(8, 2, 24, 16);
-        
-        // Szélvédő
-        ctx.fillStyle = '#87CEEB';
-        ctx.fillRect(10, 4, 20, 6);
-        
-        // Lámpák
-        ctx.fillStyle = '#FF4444';
-        ctx.fillRect(6, 6, 4, 8);
-        ctx.fillRect(30, 6, 4, 8);
-        
-        // Kerekek
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(4, 2, 6, 4);
-        ctx.fillRect(30, 2, 6, 4);
-        ctx.fillRect(4, 14, 6, 4);
-        ctx.fillRect(30, 14, 6, 4);
-        
-        return canvas;
+    // ⭐ JÁTÉKOS AUTÓ ELLENŐRZÉS
+    hasPlayerSprite() {
+        return this.assets.player !== null;
     }
 }

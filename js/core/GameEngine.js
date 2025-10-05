@@ -5,6 +5,7 @@ export class GameEngine {
     constructor() {
         this.carPhysics = new CarPhysics();
         this.trackBuilder = new TrackBuilder();
+        this.assetLoader = null;
         
         this.game = {
             playerX: 0,
@@ -27,15 +28,16 @@ export class GameEngine {
             roadWidth: 2000,
             segmentLength: 200,
             drawDistance: 400,
-            trackLength: 50000, // ⭐ HOSSZABB PÁLYA
+            trackLength: 50000,
             road: [],
             cars: [],
             lastCarSpawn: 0,
-            carSpawnDelay: 2000 // ⭐ GYAKORIBB AUTÓ SPAWN
+            carSpawnDelay: 2000
         };
     }
     
     buildTrack(assetLoader) {
+        this.assetLoader = assetLoader;
         this.trackBuilder.buildTrack(this.game, assetLoader);
     }
     
@@ -52,12 +54,10 @@ export class GameEngine {
             audioManager.updateEngineSound(this.game);
         }
         
-        // ⭐ JAVÍTOTT CÉLBA ÉRÉS
         if (this.game.position >= this.game.trackLength - 1000) {
             this.handleFinish(audioManager);
         }
         
-        // ⭐ MOBIL RESTART TÁMOGATÁS
         if (this.game.finished && (inputManager.isPressed('KeyR') || inputManager.isPressed('Enter'))) {
             this.restartRace();
             if (audioManager && audioManager.startBackgroundMusic) {
@@ -111,29 +111,30 @@ export class GameEngine {
         this.game.position += this.game.speed * dt * 50;
     }
     
-    // ⭐ JAVÍTOTT AUTÓ FRISSÍTÉS
+    // ⭐ JAVÍTOTT AUTÓ FRISSÍTÉS - ÜTKÖZÉSELKERÜLÉSSEL
     updateCars(dt) {
         this.game.cars.forEach((car, index) => {
-            // Autó saját mozgása
             const carForwardMovement = car.speed * dt * 50;
-            // Játékos hatása (hátrafelé mozognak a játékoshoz képest)
             const playerEffect = this.game.speed * dt * 50;
             
             car.z += carForwardMovement - playerEffect;
             
-            // Pálya követés javítva
+            // ⭐ PÁLYA KÖVETÉS
             if (car.followsTrack) {
                 const carPosition = this.game.position + car.z;
                 const carSegment = this.findSegment(carPosition);
                 
                 if (carSegment && Math.abs(carSegment.curve) > 0) {
-                    const curveEffect = carSegment.curve * 0.0002; // Finomabb követés
+                    const curveEffect = carSegment.curve * 0.0002;
                     car.offset += curveEffect;
                     car.offset = Math.max(-0.9, Math.min(0.9, car.offset));
                 }
             }
             
-            // ⭐ NAGYOBB TÁVOLSÁG ELTÁVOLÍTÁSHOZ
+            // ⭐ ÜTKÖZÉSELKERÜLÉS - AUTÓK EGYMÁS KÖZÖTT
+            this.avoidCarCollisions(car, index);
+            
+            // Autó eltávolítása ha túl messze van
             if (car.z > 5000 || car.z < -2000) {
                 this.game.cars.splice(index, 1);
                 return;
@@ -141,7 +142,42 @@ export class GameEngine {
         });
     }
     
-    // ⭐ JAVÍTOTT AUTÓ SPAWN
+    // ⭐ ÜTKÖZÉSELKERÜLŐ RENDSZER
+    avoidCarCollisions(currentCar, currentIndex) {
+        const safeDistance = 300; // Biztonságos távolság
+        const sideDistance = 0.3;  // Oldalsó biztonságos távolság
+        
+        this.game.cars.forEach((otherCar, otherIndex) => {
+            if (currentIndex === otherIndex) return;
+            
+            const zDistance = Math.abs(currentCar.z - otherCar.z);
+            const offsetDistance = Math.abs(currentCar.offset - otherCar.offset);
+            
+            // Ha túl közel vannak egymáshoz
+            if (zDistance < safeDistance && offsetDistance < sideDistance) {
+                
+                // ⭐ OLDALSÓ KITÉRÉS
+                if (currentCar.offset > otherCar.offset) {
+                    // Jobbra térjen ki
+                    currentCar.offset = Math.min(0.8, currentCar.offset + 0.01);
+                } else {
+                    // Balra térjen ki
+                    currentCar.offset = Math.max(-0.8, currentCar.offset - 0.01);
+                }
+                
+                // ⭐ SEBESSÉGKÜLÖNBSÉG
+                if (currentCar.z > otherCar.z) {
+                    // Ha előrébb van, lassítson egy kicsit
+                    currentCar.speed = Math.max(60, currentCar.speed - 5);
+                } else {
+                    // Ha hátrébb van, gyorsítson egy kicsit
+                    currentCar.speed = Math.min(120, currentCar.speed + 5);
+                }
+            }
+        });
+    }
+    
+    // ⭐ JAVÍTOTT AUTÓ SPAWN - CSAK KÉPES AUTÓK
     spawnNewCar() {
         const now = Date.now();
         
@@ -149,26 +185,49 @@ export class GameEngine {
             return;
         }
         
-        if (this.game.cars.length >= 5) { // Több autó
+        if (this.game.cars.length >= 4) { // Kevesebb autó = kevesebb ütközés
             return;
         }
         
-        // Változatos pozíciók
+        // ⭐ ELLENŐRZÉS: VANNAK-E BETÖLTÖTT ELLENFÉL SPRITE-OK
+        if (!this.assetLoader || !this.assetLoader.hasEnemySprites()) {
+            console.warn('⚠️ Nincs betöltött ellenfél sprite, autó spawn kihagyva');
+            return;
+        }
+        
+        // ⭐ BIZTONSÁGOS SPAWN POZÍCIÓK
         const spawnPositions = [
-            { z: 1500, offset: -0.6 }, // Bal sáv
-            { z: 2000, offset: 0.0 },  // Közép
-            { z: 1800, offset: 0.6 },  // Jobb sáv
-            { z: 2500, offset: -0.3 }, // Bal-közép
-            { z: 2200, offset: 0.3 }   // Jobb-közép
+            { z: 1800, offset: -0.6 }, // Bal sáv
+            { z: 2200, offset: 0.0 },  // Közép
+            { z: 2000, offset: 0.6 },  // Jobb sáv
         ];
         
-        const randomPos = spawnPositions[Math.floor(Math.random() * spawnPositions.length)];
+        // ⭐ SZABAD POZÍCIÓ KERESÉSE
+        let safePosition = null;
+        for (const pos of spawnPositions) {
+            if (this.isPositionSafe(pos.z, pos.offset)) {
+                safePosition = pos;
+                break;
+            }
+        }
+        
+        if (!safePosition) {
+            console.log('🚫 Nincs biztonságos spawn pozíció');
+            return;
+        }
+        
+        // ⭐ SPRITE BETÖLTÉS
+        const enemySprite = this.assetLoader.getRandomEnemySprite();
+        if (!enemySprite) {
+            console.warn('⚠️ Nem sikerült ellenfél sprite betöltése');
+            return;
+        }
         
         const newCar = {
-            z: randomPos.z + Math.random() * 500,
-            offset: randomPos.offset + (Math.random() - 0.5) * 0.2,
-            sprite: this.getRandomEnemySprite(),
-            speed: 80 + Math.random() * 40, // Változatos sebesség
+            z: safePosition.z + Math.random() * 200,
+            offset: safePosition.offset + (Math.random() - 0.5) * 0.1,
+            sprite: enemySprite, // ⭐ CSAK BETÖLTÖTT KÉPEK
+            speed: 70 + Math.random() * 30,
             width: 60,
             height: 30,
             followsTrack: true
@@ -176,31 +235,26 @@ export class GameEngine {
         
         this.game.cars.push(newCar);
         this.game.lastCarSpawn = now;
+        this.game.carSpawnDelay = 2000 + Math.random() * 3000; // Ritkább spawn
         
-        // Következő spawn idő variálása
-        this.game.carSpawnDelay = 1500 + Math.random() * 2000;
+        console.log('✅ Új ellenfél autó spawn-olva, pozíció:', safePosition);
     }
     
-    getRandomEnemySprite() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 40;
-        canvas.height = 20;
-        const ctx = canvas.getContext('2d');
+    // ⭐ BIZTONSÁGOS POZÍCIÓ ELLENŐRZÉS
+    isPositionSafe(z, offset) {
+        const minDistance = 500; // Minimum távolság más autóktól
+        const minOffsetDistance = 0.4; // Minimum oldalsó távolság
         
-        const colors = ['#0000FF', '#00FF00', '#FF00FF', '#FFFF00', '#FF8800', '#8800FF'];
-        const color = colors[Math.floor(Math.random() * colors.length)];
+        for (const car of this.game.cars) {
+            const zDistance = Math.abs(car.z - z);
+            const offsetDistance = Math.abs(car.offset - offset);
+            
+            if (zDistance < minDistance && offsetDistance < minOffsetDistance) {
+                return false; // Nem biztonságos
+            }
+        }
         
-        ctx.fillStyle = color;
-        ctx.fillRect(8, 2, 24, 16);
-        ctx.fillStyle = '#87CEEB';
-        ctx.fillRect(10, 4, 20, 6);
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(4, 2, 6, 4);
-        ctx.fillRect(30, 2, 6, 4);
-        ctx.fillRect(4, 14, 6, 4);
-        ctx.fillRect(30, 14, 6, 4);
-        
-        return canvas;
+        return true; // Biztonságos pozíció
     }
     
     findSegment(z) {
@@ -211,15 +265,13 @@ export class GameEngine {
         return this.game.road.length > 0 ? this.game.road[0] : null;
     }
     
-    // ⭐ JAVÍTOTT CÉLBA ÉRÉS - AUTOMATIKUS HANGLEÁLLÍTÁS
     handleFinish(audioManager) {
         if (!this.game.finished) {
             this.game.finished = true;
             this.game.finishTime = Date.now() - this.game.raceStartTime;
             
-            // ⭐ MINDEN HANG LEÁLLÍTÁSA
             if (audioManager) {
-                audioManager.stopAllSounds(); // Új metódus
+                audioManager.stopAllSounds();
                 if (audioManager.playSound) {
                     setTimeout(() => audioManager.playSound('finish'), 500);
                 }
