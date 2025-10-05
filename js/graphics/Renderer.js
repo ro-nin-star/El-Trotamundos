@@ -1,462 +1,334 @@
+import { ScreenManager } from './ScreenManager.js';
+import { HUD } from '../ui/HUD.js';
+
 export class Renderer {
     constructor() {
         this.canvas = null;
         this.ctx = null;
-        this.width = 0;
-        this.height = 0;
-        this.isMobile = false; // ⭐ MOBIL FLAG
-        this.colors = this.initColors();
+        this.screenManager = new ScreenManager();
+        this.hud = new HUD();
+        this.isMobile = false;
     }
     
     setCanvas(canvas, ctx) {
         this.canvas = canvas;
         this.ctx = ctx;
-        this.width = canvas.width;
-        this.height = canvas.height;
-        console.log(`🎨 Renderer beállítva: ${this.width}x${this.height}`);
+        this.screenManager.setCanvas(canvas, ctx);
+        this.hud.setCanvas(canvas, ctx);
     }
     
-    // ⭐ HIÁNYZÓ SETMOBILE METÓDUS
     setMobile(isMobile) {
         this.isMobile = isMobile;
-        console.log(`📱 Mobil mód: ${isMobile ? 'BE' : 'KI'}`);
+        this.screenManager.setMobile(isMobile);
+        this.hud.setMobile(isMobile);
     }
     
-    initColors() {
-        return {
-            sky: '#87CEEB',
-            ground: '#228B22',
-            road: '#404040',
-            road_marking: '#FFFFFF',
-            grass: '#32CD32',
-            tree: '#228B22',
-            
-            // ⭐ SZEGMENS SZÍNEK
-            light: '#808080',
-            dark: '#696969',
-            highway_light: '#606060',
-            highway_dark: '#505050',
-            road_light: '#707070',
-            road_dark: '#606060',
-            city_light: '#909090',
-            city_dark: '#808080',
-            water_light: '#4169E1',
-            water_dark: '#0000CD',
-            forest_light: '#228B22',
-            forest_dark: '#006400'
-        };
-    }
-    
-    render(game, gameState, assets) {
-        if (!this.ctx || !game) return;
+    render(gameState, gameEngine, assetLoader) {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // ⭐ KÉPERNYŐ TÖRLÉSE
-        this.ctx.fillStyle = '#000000';
-        this.ctx.fillRect(0, 0, this.width, this.height);
-        
-        switch (gameState.current) {
+        switch(gameState.current) {
             case 'LOADING':
-                this.renderLoading();
+                this.screenManager.renderLoadingScreen(gameState);
                 break;
-            case 'READY':
-                this.renderReady(game, assets);
+            case 'INTRO':
+                this.screenManager.renderIntroScreen();
                 break;
             case 'PLAYING':
-                this.renderGame(game, assets);
+                this.renderGame(gameEngine, assetLoader);
                 break;
-            case 'PAUSED':
-                this.renderGame(game, assets);
-                this.renderPause();
-                break;
-            case 'FINISHED':
-                this.renderGame(game, assets);
-                this.renderFinished(game);
-                break;
-            default:
-                this.renderLoading();
         }
     }
     
-    // ⭐ BETÖLTÉS KÉPERNYŐ
-    renderLoading() {
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = this.isMobile ? 'bold 32px Arial' : 'bold 48px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('🏎️ EL TROTAMUNDOS', this.width / 2, this.height / 2 - 50);
+    renderGame(gameEngine, assetLoader) {
+        this.ctx.save();
+        this.ctx.translate(gameEngine.game.shake.x, gameEngine.game.shake.y);
         
-        this.ctx.font = this.isMobile ? '18px Arial' : '24px Arial';
-        this.ctx.fillText('Betöltés...', this.width / 2, this.height / 2 + 20);
+        this.renderSky();
+        this.renderRoad(gameEngine);
+        this.renderPlayerCar(gameEngine, assetLoader);
+        
+        this.ctx.restore();
+        
+        this.hud.render(gameEngine);
+        
+        if (gameEngine.game.finished) {
+            this.screenManager.renderFinishLayer(gameEngine);
+        }
     }
     
-    // ⭐ READY KÉPERNYŐ
-    renderReady(game, assets) {
-        // ⭐ HÁTTÉR GRADIENS
-        const gradient = this.ctx.createLinearGradient(0, 0, 0, this.height);
-        gradient.addColorStop(0, '#001122');
-        gradient.addColorStop(1, '#003366');
+    renderSky() {
+        const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height * 0.6);
+        gradient.addColorStop(0, '#87CEEB');
+        gradient.addColorStop(1, '#98FB98');
+        
         this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(0, 0, this.width, this.height);
-        
-        // ⭐ CÍM (MOBIL RESPONSIVE)
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = this.isMobile ? 'bold 28px Arial' : 'bold 48px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('🏎️ EL TROTAMUNDOS', this.width / 2, this.height / 3);
-        
-        this.ctx.font = this.isMobile ? '16px Arial' : '24px Arial';
-        this.ctx.fillStyle = '#FFFF00';
-        this.ctx.fillText('Magyar Telekom Racing', this.width / 2, this.height / 3 + (this.isMobile ? 35 : 50));
-        
-        // ⭐ JÁTÉK INFO
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = this.isMobile ? '14px Arial' : '20px Arial';
-        
-        if (game.trackLength) {
-            this.ctx.fillText(`Pálya: ${Math.round(game.trackLength / 1000)}km`, this.width / 2, this.height / 2);
-        }
-        
-        if (game.road && game.road.length) {
-            this.ctx.fillText(`Szegmensek: ${game.road.length}`, this.width / 2, this.height / 2 + (this.isMobile ? 25 : 30));
-        }
-        
-        // ⭐ INDÍTÁS INSTRUKCIÓ
-        this.ctx.fillStyle = '#00FF00';
-        this.ctx.font = this.isMobile ? 'bold 18px Arial' : 'bold 24px Arial';
-        const startText = this.isMobile ? 'ÉRINTSD MEG A KÉPERNYŐT!' : 'NYOMD MEG A SPACE-T!';
-        this.ctx.fillText(startText, this.width / 2, this.height * 0.75);
-        
-        // ⭐ VILLOGÓ EFFEKT
-        const time = Date.now() / 500;
-        if (Math.sin(time) > 0) {
-            this.ctx.fillStyle = '#FF0000';
-            this.ctx.font = this.isMobile ? '14px Arial' : '18px Arial';
-            this.ctx.fillText('🏁 KÉSZEN ÁLLSZ?', this.width / 2, this.height * 0.85);
-        }
-        
-        // ⭐ MINI TÉRKÉP ELŐNÉZET (CSAK DESKTOP-ON)
-        if (!this.isMobile) {
-            this.renderMiniMap(game, this.width - 200, 20, 180, 140, true);
-        }
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height * 0.6);
     }
     
-    // ⭐ JÁTÉK RENDERELÉS
-    renderGame(game, assets) {
-        // ⭐ 3D ÚTVONAL RENDERELÉS
-        this.render3DRoad(game);
+    renderRoad(gameEngine) {
+        const game = gameEngine.game;
+        const baseSegment = this.findSegment(game.position, game);
         
-        // ⭐ AUTÓK RENDERELÉS
-        this.renderCars(game, assets);
+        if (!baseSegment) return;
         
-        // ⭐ HUD RENDERELÉS
-        this.renderHUD(game);
+        const basePercent = (game.position % game.segmentLength) / game.segmentLength;
+        const playerY = 0;
         
-        // ⭐ MINI TÉRKÉP (CSAK DESKTOP-ON)
-        if (!this.isMobile) {
-            this.renderMiniMap(game, this.width - 220, 20, 200, 150);
-        }
-    }
-    
-    // ⭐ 3D ÚTVONAL RENDERELÉS
-    render3DRoad(game) {
-        const baseX = this.width / 2;
-        const baseY = this.height;
+        let maxy = this.canvas.height;
+        let x = 0;
+        let dx = -(basePercent * baseSegment.curve);
         
-        // ⭐ ÉG
-        const skyGradient = this.ctx.createLinearGradient(0, 0, 0, this.height * 0.6);
-        skyGradient.addColorStop(0, '#87CEEB');
-        skyGradient.addColorStop(1, '#E0F6FF');
-        this.ctx.fillStyle = skyGradient;
-        this.ctx.fillRect(0, 0, this.width, this.height * 0.6);
-        
-        // ⭐ FÖLD
-        this.ctx.fillStyle = this.colors.ground;
-        this.ctx.fillRect(0, this.height * 0.6, this.width, this.height * 0.4);
-        
-        // ⭐ ÚTVONAL SZEGMENSEK
-        if (!game.road || !game.road.length) return;
-        
-        for (let n = 0; n < (game.drawDistance || 300); n++) {
-            const segmentIndex = Math.floor((game.position.z / game.segmentLength + n)) % game.road.length;
+        for (let n = 0; n < game.drawDistance; n++) {
+            const segmentIndex = (baseSegment.index + n) % game.road.length;
             const segment = game.road[segmentIndex];
             
             if (!segment) continue;
             
-            // ⭐ ALAPÉRTELMEZETT PONT STRUKTÚRA
-            if (!segment.p1) segment.p1 = { world: {x:0,y:0,z:0}, camera: {x:0,y:0,z:0}, screen: {x:0,y:0,w:0,scale:0} };
-            if (!segment.p2) segment.p2 = { world: {x:0,y:0,z:0}, camera: {x:0,y:0,z:0}, screen: {x:0,y:0,w:0,scale:0} };
+            this.project(segment.p1, 
+                (game.playerX * game.roadWidth) - x, 
+                playerY + game.cameraY, 
+                game.position);
+            this.project(segment.p2, 
+                (game.playerX * game.roadWidth) - x - dx, 
+                playerY + game.cameraY, 
+                game.position);
             
-            // ⭐ PROJEKCIÓ SZÁMÍTÁS
-            segment.p1.camera.x = segment.p1.world.x - (game.position.x || 0);
-            segment.p1.camera.y = segment.p1.world.y - (game.position.y || 0);
-            segment.p1.camera.z = segment.p1.world.z - (game.position.z || 0);
+            x += dx;
+            dx += segment.curve;
             
-            segment.p2.camera.x = segment.p2.world.x - (game.position.x || 0);
-            segment.p2.camera.y = segment.p2.world.y - (game.position.y || 0);
-            segment.p2.camera.z = segment.p2.world.z - (game.position.z || 0);
-            
-            // ⭐ KÉPERNYŐ KOORDINÁTÁK
-            this.project(segment.p1, baseX, baseY, game.roadWidth || 2000);
-            this.project(segment.p2, baseX, baseY, game.roadWidth || 2000);
-            
-            const cameraDepth = game.cameraDepth || 0.84;
-            if (segment.p1.camera.z <= cameraDepth || segment.p2.camera.z <= cameraDepth) continue;
-            
-            // ⭐ SZEGMENS RAJZOLÁS
-            this.renderSegment(segment, n);
-        }
-    }
-    
-    // ⭐ PROJEKCIÓ SZÁMÍTÁS
-    project(p, cameraX, cameraY, roadWidth) {
-        const cameraDepth = 0.84;
-        p.screen.scale = cameraDepth / Math.max(p.camera.z, 0.1);
-        p.screen.x = Math.round(cameraX + (p.screen.scale * p.camera.x * this.width / 2));
-        p.screen.y = Math.round(cameraY + (p.screen.scale * p.camera.y * this.height / 2));
-        p.screen.w = Math.round(p.screen.scale * roadWidth * this.width / 2);
-    }
-    
-    // ⭐ SZEGMENS RENDERELÉS
-    renderSegment(segment, index) {
-        const p1 = segment.p1.screen;
-        const p2 = segment.p2.screen;
-        
-        // ⭐ SZÍN MEGHATÁROZÁS
-        const colorKey = segment.color || (index % 3 === 0 ? 'dark' : 'light');
-        const grassColor = this.colors.grass;
-        const roadColor = this.colors[colorKey] || this.colors.light;
-        
-        // ⭐ FŰ RENDERELÉS
-        this.ctx.fillStyle = grassColor;
-        this.ctx.fillRect(0, p2.y, this.width, p1.y - p2.y);
-        
-        // ⭐ ÚT RENDERELÉS
-        if (p1.w > 0 && p2.w > 0) {
-            this.ctx.fillStyle = roadColor;
-            this.ctx.beginPath();
-            this.ctx.moveTo(p1.x - p1.w, p1.y);
-            this.ctx.lineTo(p1.x + p1.w, p1.y);
-            this.ctx.lineTo(p2.x + p2.w, p2.y);
-            this.ctx.lineTo(p2.x - p2.w, p2.y);
-            this.ctx.closePath();
-            this.ctx.fill();
-            
-            // ⭐ ÚTFESTÉS
-            if (index % 4 === 0) {
-                this.ctx.fillStyle = this.colors.road_marking;
-                const markingWidth = p1.w * 0.1;
-                this.ctx.fillRect(p1.x - markingWidth/2, p1.y, markingWidth, p2.y - p1.y);
+            if ((segment.p1.camera.z <= 0.84) || (segment.p2.screen.y >= maxy)) {
+                continue;
             }
+            
+            this.renderSegment(segment);
+            maxy = segment.p1.screen.y;
+        }
+        
+        this.renderFinishLine(game);
+        this.renderCars(game);
+    }
+    
+    findSegment(z, game) {
+        const segmentIndex = Math.floor(z / game.segmentLength);
+        if (segmentIndex >= 0 && segmentIndex < game.road.length) {
+            return game.road[segmentIndex];
+        }
+        return game.road.length > 0 ? game.road[0] : null;
+    }
+    
+    project(p, cameraX, cameraY, cameraZ) {
+        p.camera.x = (p.world.x || 0) - cameraX;
+        p.camera.y = (p.world.y || 0) - cameraY;
+        p.camera.z = (p.world.z || 0) - cameraZ;
+        
+        if (p.camera.z <= 0) {
+            p.screen.scale = 0;
+            p.screen.x = 0;
+            p.screen.y = 0;
+            p.screen.w = 0;
+            return;
+        }
+        
+        p.screen.scale = 0.84 / p.camera.z;
+        p.screen.x = Math.round((this.canvas.width / 2) + (p.screen.scale * p.camera.x * this.canvas.width / 2));
+        p.screen.y = Math.round((this.canvas.height / 2) - (p.screen.scale * p.camera.y * this.canvas.height / 2));
+        p.screen.w = Math.round(p.screen.scale * 2000 * this.canvas.width / 2);
+    }
+    
+    renderSegment(segment) {
+        const rumbleWidth = 2000 / 8;
+        const laneWidth = 2000 / 20;
+        
+        const r1 = rumbleWidth * segment.p1.screen.scale;
+        const r2 = rumbleWidth * segment.p2.screen.scale;
+        const l1 = laneWidth * segment.p1.screen.scale;
+        const l2 = laneWidth * segment.p2.screen.scale;
+        
+        // Fű
+        this.ctx.fillStyle = segment.color === 'dark' ? '#228B22' : '#32CD32';
+        this.ctx.fillRect(0, segment.p2.screen.y, this.canvas.width, segment.p1.screen.y - segment.p2.screen.y);
+        
+        // Út oldalsó csíkok
+        this.polygon(
+            segment.p1.screen.x - segment.p1.screen.w - r1, segment.p1.screen.y,
+            segment.p1.screen.x - segment.p1.screen.w, segment.p1.screen.y,
+            segment.p2.screen.x - segment.p2.screen.w, segment.p2.screen.y,
+            segment.p2.screen.x - segment.p2.screen.w - r2, segment.p2.screen.y,
+            segment.color === 'dark' ? '#FF0000' : '#FFFFFF'
+        );
+        
+        this.polygon(
+            segment.p1.screen.x + segment.p1.screen.w + r1, segment.p1.screen.y,
+            segment.p1.screen.x + segment.p1.screen.w, segment.p1.screen.y,
+            segment.p2.screen.x + segment.p2.screen.w, segment.p2.screen.y,
+            segment.p2.screen.x + segment.p2.screen.w + r2, segment.p2.screen.y,
+            segment.color === 'dark' ? '#FF0000' : '#FFFFFF'
+        );
+        
+        // Út
+        this.polygon(
+            segment.p1.screen.x - segment.p1.screen.w, segment.p1.screen.y,
+            segment.p1.screen.x + segment.p1.screen.w, segment.p1.screen.y,
+            segment.p2.screen.x + segment.p2.screen.w, segment.p2.screen.y,
+            segment.p2.screen.x - segment.p2.screen.w, segment.p2.screen.y,
+            segment.color === 'dark' ? '#666666' : '#999999'
+        );
+        
+        // Középvonal
+        if (segment.color === 'light') {
+            this.polygon(
+                segment.p1.screen.x - l1, segment.p1.screen.y,
+                segment.p1.screen.x + l1, segment.p1.screen.y,
+                segment.p2.screen.x + l2, segment.p2.screen.y,
+                segment.p2.screen.x - l2, segment.p2.screen.y,
+                '#FFFF00'
+            );
         }
     }
     
-    // ⭐ AUTÓK RENDERELÉS
-    renderCars(game, assets) {
-        // ⭐ JÁTÉKOS AUTÓ
-        const playerAsset = assets && assets.player;
-        if (playerAsset) {
-            const carX = this.width / 2 + ((game.position.x || 0) * this.width / 2000);
-            const carY = this.height - (this.isMobile ? 80 : 100);
-            const carWidth = this.isMobile ? 40 : 60;
-            const carHeight = this.isMobile ? 20 : 30;
-            
-            this.ctx.save();
-            this.ctx.translate(carX, carY);
-            this.ctx.rotate((game.position.x || 0) * 0.0001);
-            this.ctx.drawImage(playerAsset, -carWidth/2, -carHeight/2, carWidth, carHeight);
-            this.ctx.restore();
-        } else {
-            // ⭐ FALLBACK JÁTÉKOS AUTÓ
-            const carX = this.width / 2 + ((game.position.x || 0) * this.width / 2000);
-            const carY = this.height - (this.isMobile ? 80 : 100);
-            const carWidth = this.isMobile ? 40 : 60;
-            const carHeight = this.isMobile ? 20 : 30;
-            
-            this.ctx.fillStyle = '#FF0000';
-            this.ctx.fillRect(carX - carWidth/2, carY - carHeight/2, carWidth, carHeight);
-            this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.fillRect(carX - carWidth/3, carY - carHeight/3, carWidth*2/3, carHeight*2/3);
-        }
-        
-        // ⭐ ELLENFÉL AUTÓK
-        if (game.cars && game.cars.length) {
-            game.cars.forEach(car => {
-                if (car.z > (game.position.z || 0) && car.z < (game.position.z || 0) + (game.drawDistance || 300) * (game.segmentLength || 200)) {
-                    const segmentIndex = Math.floor(car.z / (game.segmentLength || 200)) % game.road.length;
-                    const carSegment = game.road[segmentIndex];
-                    
-                    if (carSegment && carSegment.p1 && carSegment.p1.screen && carSegment.p1.screen.scale > 0) {
-                        const carX = carSegment.p1.screen.x + (car.x * carSegment.p1.screen.w);
-                        const carY = carSegment.p1.screen.y;
-                        const carWidth = (this.isMobile ? 30 : 40) * carSegment.p1.screen.scale;
-                        const carHeight = (this.isMobile ? 15 : 20) * carSegment.p1.screen.scale;
-                        
-                        if (car.sprite) {
-                            this.ctx.drawImage(car.sprite, carX - carWidth/2, carY - carHeight/2, carWidth, carHeight);
-                        } else {
-                            this.ctx.fillStyle = '#0000FF';
-                            this.ctx.fillRect(carX - carWidth/2, carY - carHeight/2, carWidth, carHeight);
-                        }
-                    }
-                }
-            });
-        }
+    polygon(x1, y1, x2, y2, x3, y3, x4, y4, color) {
+        this.ctx.fillStyle = color;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x1, y1);
+        this.ctx.lineTo(x2, y2);
+        this.ctx.lineTo(x3, y3);
+        this.ctx.lineTo(x4, y4);
+        this.ctx.closePath();
+        this.ctx.fill();
     }
     
-    // ⭐ HUD RENDERELÉS
-    renderHUD(game) {
-        const fontSize = this.isMobile ? 16 : 24;
-        const margin = this.isMobile ? 10 : 20;
+    renderFinishLine(game) {
+        const finishPosition = game.trackLength - 500;
+        const distanceToFinish = finishPosition - game.position;
         
-        // ⭐ SEBESSÉG
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = `bold ${fontSize}px Arial`;
-        this.ctx.textAlign = 'left';
-        this.ctx.fillText(`Sebesség: ${Math.round((game.speed || 0) * 3.6)} km/h`, margin, margin + fontSize);
-        
-        // ⭐ POZÍCIÓ
-        if (game.trackLength && game.trackLength > 0) {
-            const progress = ((game.position.z || 0) / game.trackLength * 100).toFixed(1);
-            this.ctx.fillText(`Pozíció: ${progress}%`, margin, margin + fontSize * 2 + 10);
-        }
-        
-        // ⭐ IDŐ
-        if (game.raceStartTime) {
-            const elapsed = (Date.now() - game.raceStartTime) / 1000;
-            const minutes = Math.floor(elapsed / 60);
-            const seconds = (elapsed % 60).toFixed(1);
-            this.ctx.fillText(`Idő: ${minutes}:${seconds.padStart(4, '0')}`, margin, margin + fontSize * 3 + 20);
-        }
-        
-        // ⭐ HALADÁS SÁV
-        if (!this.isMobile && game.trackLength && game.trackLength > 0) {
-            const barWidth = 300;
-            const barHeight = 20;
-            const barX = this.width / 2 - barWidth / 2;
-            const barY = 20;
+        if (distanceToFinish > 0 && distanceToFinish < 2000) {
+            const finishSegment = this.findSegment(finishPosition, game);
             
-            this.ctx.fillStyle = '#333333';
-            this.ctx.fillRect(barX, barY, barWidth, barHeight);
-            
-            this.ctx.fillStyle = '#00FF00';
-            const progressWidth = ((game.position.z || 0) / game.trackLength) * barWidth;
-            this.ctx.fillRect(barX, barY, progressWidth, barHeight);
-            
-            this.ctx.strokeStyle = '#FFFFFF';
-            this.ctx.lineWidth = 2;
-            this.ctx.strokeRect(barX, barY, barWidth, barHeight);
-        }
-    }
-    
-    // ⭐ MINI TÉRKÉP
-    renderMiniMap(game, x, y, width, height, isPreview = false) {
-        // ⭐ HÁTTÉR
-        this.ctx.fillStyle = 'rgba(0,0,0,0.7)';
-        this.ctx.fillRect(x, y, width, height);
-        this.ctx.strokeStyle = '#FFFFFF';
-        this.ctx.lineWidth = 2;
-        this.ctx.strokeRect(x, y, width, height);
-        
-        // ⭐ CÍM
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = '12px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText(isPreview ? 'TÉRKÉP ELŐNÉZET' : 'MINI TÉRKÉP', x + width/2, y + 15);
-        
-        if (game.mapGenerator && game.mapGenerator.getMiniMapData) {
-            try {
-                const mapData = game.mapGenerator.getMiniMapData();
+            if (finishSegment && finishSegment.p1 && finishSegment.p1.screen) {
+                this.ctx.fillStyle = '#000000';
+                this.ctx.fillRect(0, finishSegment.p1.screen.y - 10, this.canvas.width, 20);
                 
-                if (mapData && mapData.originalImage) {
-                    // ⭐ EREDETI TÉRKÉP RAJZOLÁS
-                    const mapX = x + 10;
-                    const mapY = y + 25;
-                    const mapWidth = width - 20;
-                    const mapHeight = height - 35;
-                    
-                    this.ctx.drawImage(mapData.originalImage, mapX, mapY, mapWidth, mapHeight);
-                    
-                    // ⭐ ÚTVONAL RAJZOLÁS
-                    if (mapData.routePoints && mapData.routePoints.length > 0) {
-                        this.ctx.strokeStyle = '#FF0000';
-                        this.ctx.lineWidth = 2;
-                        this.ctx.beginPath();
-                        
-                        mapData.routePoints.forEach((point, index) => {
-                            const pointX = mapX + (point.x / mapData.mapWidth) * mapWidth;
-                            const pointY = mapY + (point.y / mapData.mapHeight) * mapHeight;
-                            
-                            if (index === 0) {
-                                this.ctx.moveTo(pointX, pointY);
-                            } else {
-                                this.ctx.lineTo(pointX, pointY);
-                            }
-                        });
-                        
-                        this.ctx.stroke();
-                    }
-                    
-                    // ⭐ JÁTÉKOS POZÍCIÓ
-                    if (!isPreview && game.trackLength && game.trackLength > 0) {
-                        const progress = (game.position.z || 0) / game.trackLength;
-                        const routeIndex = Math.floor(progress * (mapData.routePoints.length - 1));
-                        const routePoint = mapData.routePoints[routeIndex];
-                        
-                        if (routePoint) {
-                            const playerX = mapX + (routePoint.x / mapData.mapWidth) * mapWidth;
-                            const playerY = mapY + (routePoint.y / mapData.mapHeight) * mapHeight;
-                            
-                            this.ctx.fillStyle = '#FFFF00';
-                            this.ctx.beginPath();
-                            this.ctx.arc(playerX, playerY, 4, 0, Math.PI * 2);
-                            this.ctx.fill();
-                            
-                            this.ctx.strokeStyle = '#000000';
-                            this.ctx.lineWidth = 1;
-                            this.ctx.stroke();
-                        }
-                    }
+                for (let i = 0; i < this.canvas.width; i += 40) {
+                    this.ctx.fillStyle = i % 80 === 0 ? '#FFFFFF' : '#000000';
+                    this.ctx.fillRect(i, finishSegment.p1.screen.y - 10, 40, 20);
                 }
-            } catch (error) {
-                console.warn('⚠️ Mini térkép renderelési hiba:', error);
             }
         }
     }
     
-    // ⭐ SZÜNET KÉPERNYŐ
-    renderPause() {
-        this.ctx.fillStyle = 'rgba(0,0,0,0.7)';
-        this.ctx.fillRect(0, 0, this.width, this.height);
-        
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = this.isMobile ? 'bold 32px Arial' : 'bold 48px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('⏸️ SZÜNET', this.width / 2, this.height / 2);
-        
-        this.ctx.font = this.isMobile ? '18px Arial' : '24px Arial';
-        this.ctx.fillText('ESC - Folytatás', this.width / 2, this.height / 2 + 50);
+    // ⭐ JAVÍTOTT AUTÓ RENDERELÉS - NAGYOBB LÁTÓTÁVOLSÁG
+    renderCars(game) {
+        game.cars.forEach(car => {
+            // ⭐ MEGNÖVELT LÁTÓTÁVOLSÁG: -2000 -> -3000 és 4000 -> 8000
+            if (car.z > -3000 && car.z < 8000 && car.sprite && car.sprite instanceof HTMLImageElement) {
+                this.renderCarAtPosition(car, game);
+            }
+        });
     }
     
-    // ⭐ BEFEJEZETT JÁTÉK
-    renderFinished(game) {
-        this.ctx.fillStyle = 'rgba(0,0,0,0.8)';
-        this.ctx.fillRect(0, 0, this.width, this.height);
+    // ⭐ TELJESEN ÚJRAÍRT AUTÓ MÉRETEZÉS - REALISZTIKUS PERSPEKTÍVA
+    renderCarAtPosition(car, game) {
+        // ⭐ VILÁGKOORDINÁTÁK SZÁMÍTÁSA
+        const carWorldZ = game.position + car.z;
+        const carWorldX = car.offset * game.roadWidth;
+        const carWorldY = 0;
         
-        this.ctx.fillStyle = '#FFFF00';
-        this.ctx.font = this.isMobile ? 'bold 32px Arial' : 'bold 48px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('🏁 CÉLBA ÉRTÉL!', this.width / 2, this.height / 2 - 50);
+        // ⭐ KAMERA KOORDINÁTÁK
+        const cameraX = carWorldX - (game.playerX * game.roadWidth);
+        const cameraY = carWorldY - game.cameraY;
+        const cameraZ = carWorldZ - game.position;
         
-        if (game.raceStartTime) {
-            const elapsed = (Date.now() - game.raceStartTime) / 1000;
-            const minutes = Math.floor(elapsed / 60);
-            const seconds = (elapsed % 60).toFixed(1);
+        // ⭐ LÁTHATÓSÁG ELLENŐRZÉS
+        if (cameraZ <= 0.05) return; // Csökkentett minimum távolság
+        
+        // ⭐ KÉPERNYŐ KOORDINÁTÁK
+        const scale = 0.84 / cameraZ;
+        const screenX = (this.canvas.width / 2) + (scale * cameraX * this.canvas.width / 2);
+        const screenY = (this.canvas.height / 2) - (scale * cameraY * this.canvas.height / 2);
+        
+        // ⭐ SPRITE MÉRET ELLENŐRZÉS
+        const spriteWidth = car.sprite.width || 40;
+        const spriteHeight = car.sprite.height || 20;
+        
+        // ⭐ JAVÍTOTT MÉRETEZÉSI ALGORITMUS
+        let finalW, finalH;
+        
+        if (car.z > 0) {
+            // ⭐ ELŐTTÜNK LÉVŐ AUTÓK - NAGYOBB MÉRETEZÉS
+            const frontScale = Math.max(0.8, Math.min(6.0, scale * 35)); // Nagyobb szorzó
+            finalW = spriteWidth * frontScale;
+            finalH = spriteHeight * frontScale;
             
-            this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.font = this.isMobile ? '24px Arial' : '32px Arial';
-            this.ctx.fillText(`Idő: ${minutes}:${seconds.padStart(4, '0')}`, this.width / 2, this.height / 2 + 20);
+            // ⭐ MINIMUM MÉRET ELŐTTÜNK LÉVŐ AUTÓKHOZ
+            finalW = Math.max(40, Math.min(400, finalW));
+            finalH = Math.max(25, Math.min(250, finalH));
+            
+        } else {
+            // ⭐ MÖGÖTTÜNK LÉVŐ AUTÓK - NORMÁL MÉRETEZÉS
+            const backScale = Math.max(0.3, Math.min(4.0, scale * 25));
+            finalW = spriteWidth * backScale;
+            finalH = spriteHeight * backScale;
+            
+            finalW = Math.max(15, Math.min(300, finalW));
+            finalH = Math.max(10, Math.min(180, finalH));
         }
         
-        this.ctx.font = this.isMobile ? '18px Arial' : '24px Arial';
-        this.ctx.fillText('F5 - Újraindítás', this.width / 2, this.height / 2 + 80);
+        // ⭐ POZÍCIÓ SZÁMÍTÁSA
+        const destX = screenX - (finalW / 2);
+        const destY = screenY - finalH;
+        
+        // ⭐ TÁVOLSÁG ALAPÚ ÁTLÁTSZÓSÁG
+        let alpha = 1.0;
+        if (car.z > 4000) {
+            // Távoli autók halványítása
+            alpha = Math.max(0.3, 1.0 - ((car.z - 4000) / 4000));
+        }
+        
+        // ⭐ KÉPERNYŐN KÍVÜLI AUTÓK KISZŰRÉSE
+        if (destX + finalW < 0 || destX > this.canvas.width || 
+            destY + finalH < 0 || destY > this.canvas.height) {
+            return;
+        }
+        
+        // ⭐ RENDERELÉS
+        this.ctx.save();
+        this.ctx.globalAlpha = alpha;
+        this.ctx.imageSmoothingEnabled = false;
+        
+        try {
+            this.ctx.drawImage(car.sprite, destX, destY, finalW, finalH);
+            
+            // ⭐ DEBUG INFO (opcionális - törölhető)
+            if (false) { // true-ra állítva megjeleníti a debug infót
+                this.ctx.fillStyle = 'white';
+                this.ctx.font = '10px Arial';
+                this.ctx.fillText(`Z:${Math.round(car.z)}`, destX, destY - 5);
+            }
+            
+        } catch (error) {
+            console.warn('⚠️ Autó renderelési hiba:', error);
+        }
+        
+        this.ctx.restore();
+    }
+    
+    renderPlayerCar(gameEngine, assetLoader) {
+        const assets = assetLoader.getAssets();
+        if (!assets.player) return;
+        
+        const carScale = this.isMobile ? 2.0 : 2.5;
+        const carW = assets.player.width * carScale;
+        const carH = assets.player.height * carScale;
+        
+        const carX = (this.canvas.width / 2) - (carW / 2);
+        const carY = this.canvas.height - carH - 20;
+        
+        this.ctx.save();
+        this.ctx.globalAlpha = 1.0;
+        this.ctx.imageSmoothingEnabled = false;
+        this.ctx.translate(carX + carW / 2, carY + carH / 2);
+        this.ctx.rotate(gameEngine.game.playerX * 0.1);
+        this.ctx.drawImage(assets.player, -carW / 2, -carH / 2, carW, carH);
+        this.ctx.restore();
     }
 }
