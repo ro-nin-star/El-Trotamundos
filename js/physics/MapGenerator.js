@@ -1,3 +1,4 @@
+//https://static.valasztas.hu/parval2002/onkweb/tart/inf/terkep2/borsod.htm
 export class MapGenerator {
     constructor() {
         this.mapCanvas = null;
