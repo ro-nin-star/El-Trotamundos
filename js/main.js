@@ -19,7 +19,7 @@ class OutRunRacing {
         this.gameEngine = new GameEngine();
         this.renderer = new Renderer();
         this.audioManager = new AudioManager();
-        this.mapImagePath = 'assets/map-baz.png'; // Példa térkép
+        this.mapImagePath = 'assets/map-bazpng'; // Példa térkép
 
         // ⭐ KORMÁNYOS MOBIL VEZÉRLÉS
         this.mobileControls = {
