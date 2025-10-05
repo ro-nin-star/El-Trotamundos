@@ -2,11 +2,16 @@ export class ScreenManager {
     constructor() {
         this.canvas = null;
         this.ctx = null;
+        this.isMobile = false;
     }
     
     setCanvas(canvas, ctx) {
         this.canvas = canvas;
         this.ctx = ctx;
+    }
+    
+    setMobile(isMobile) {
+        this.isMobile = isMobile;
     }
     
     renderLoadingScreen(gameState) {
@@ -26,27 +31,27 @@ export class ScreenManager {
         
         // Cím
         this.ctx.fillStyle = '#FFD700';
-        this.ctx.font = 'bold 72px monospace';
+        this.ctx.font = this.isMobile ? 'bold 48px monospace' : 'bold 72px monospace';
         this.ctx.textAlign = 'center';
         this.ctx.strokeStyle = '#000000';
         this.ctx.lineWidth = 4;
-        this.ctx.strokeText('RACING', this.canvas.width / 2, 200);
-        this.ctx.fillText('RACING', this.canvas.width / 2, 200);
+        this.ctx.strokeText('RACING', this.canvas.width / 2, this.isMobile ? 150 : 200);
+        this.ctx.fillText('RACING', this.canvas.width / 2, this.isMobile ? 150 : 200);
         
         this.ctx.fillStyle = '#FF4444';
-        this.ctx.strokeText('LOTUS', this.canvas.width / 2, 300);
-        this.ctx.fillText('LOTUS', this.canvas.width / 2, 300);
+        this.ctx.strokeText('LOTUS', this.canvas.width / 2, this.isMobile ? 220 : 300);
+        this.ctx.fillText('LOTUS', this.canvas.width / 2, this.isMobile ? 220 : 300);
         
         // Loading szöveg
         this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = '24px monospace';
-        this.ctx.fillText(gameState.loadingText || 'Loading...', this.canvas.width / 2, 400);
+        this.ctx.font = this.isMobile ? '18px monospace' : '24px monospace';
+        this.ctx.fillText(gameState.loadingText || 'Loading...', this.canvas.width / 2, this.isMobile ? 300 : 400);
         
         // Progress bar
-        const barWidth = 400;
+        const barWidth = this.isMobile ? 300 : 400;
         const barHeight = 30;
         const barX = (this.canvas.width - barWidth) / 2;
-        const barY = 450;
+        const barY = this.isMobile ? 330 : 450;
         
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
         this.ctx.fillRect(barX - 4, barY - 4, barWidth + 8, barHeight + 8);
@@ -89,8 +94,8 @@ export class ScreenManager {
         }
         
         // Fő keret
-        const boxWidth = 700;
-        const boxHeight = 500;
+        const boxWidth = this.isMobile ? this.canvas.width - 40 : 700;
+        const boxHeight = this.isMobile ? this.canvas.height - 40 : 500;
         const boxX = (this.canvas.width - boxWidth) / 2;
         const boxY = (this.canvas.height - boxHeight) / 2;
         
@@ -103,25 +108,32 @@ export class ScreenManager {
         
         // Cím
         this.ctx.fillStyle = '#FFD700';
-        this.ctx.font = 'bold 48px monospace';
+        this.ctx.font = this.isMobile ? 'bold 32px monospace' : 'bold 48px monospace';
         this.ctx.textAlign = 'center';
         this.ctx.strokeStyle = '#000000';
         this.ctx.lineWidth = 3;
-        this.ctx.strokeText('RACING LOTUS', this.canvas.width / 2, boxY + 80);
-        this.ctx.fillText('RACING LOTUS', this.canvas.width / 2, boxY + 80);
+        this.ctx.strokeText('RACING LOTUS', this.canvas.width / 2, boxY + (this.isMobile ? 60 : 80));
+        this.ctx.fillText('RACING LOTUS', this.canvas.width / 2, boxY + (this.isMobile ? 60 : 80));
         
         // Irányítás
         this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = 'bold 24px monospace';
-        this.ctx.fillText('CONTROLS:', this.canvas.width / 2, boxY + 140);
+        this.ctx.font = this.isMobile ? 'bold 18px monospace' : 'bold 24px monospace';
+        this.ctx.fillText('CONTROLS:', this.canvas.width / 2, boxY + (this.isMobile ? 100 : 140));
         
-        this.ctx.font = '20px monospace';
+        this.ctx.font = this.isMobile ? '14px monospace' : '20px monospace';
         this.ctx.textAlign = 'left';
         
-        const controlsX = boxX + 80;
-        let controlsY = boxY + 180;
+        const controlsX = boxX + (this.isMobile ? 40 : 80);
+        let controlsY = boxY + (this.isMobile ? 130 : 180);
         
-        const controls = [
+        const controls = this.isMobile ? [
+            '📱 Használd az alsó gombokat',
+            '⬆️ GÁZ gomb - Gyorsítás',
+            '⬇️ FÉK gomb - Fékezés',
+            '⬅️➡️ Kormányzás',
+            '🚀 NITRO gomb - Turbó',
+            '🔊 Hang be/ki'
+        ] : [
             '↑ / W     - ACCELERATE',
             '↓ / S     - BRAKE',
             '← / A     - STEER LEFT', 
@@ -131,25 +143,28 @@ export class ScreenManager {
             'R         - RESTART (after finish)'
         ];
         
+        const lineHeight = this.isMobile ? 25 : 35;
+        
         controls.forEach(control => {
             this.ctx.fillStyle = 'rgba(0, 100, 100, 0.3)';
-            this.ctx.fillRect(controlsX - 10, controlsY - 20, 540, 25);
+            this.ctx.fillRect(controlsX - 10, controlsY - 20, boxWidth - (this.isMobile ? 60 : 160), 25);
             
             this.ctx.fillStyle = '#00FFFF';
             this.ctx.fillText(control, controlsX, controlsY);
-            controlsY += 35;
+            controlsY += lineHeight;
         });
         
         // Start gomb
         this.ctx.textAlign = 'center';
         this.ctx.fillStyle = '#00FF00';
-        this.ctx.font = 'bold 32px monospace';
+        this.ctx.font = this.isMobile ? 'bold 20px monospace' : 'bold 32px monospace';
         
         if (Math.floor(Date.now() / 500) % 2) {
             this.ctx.strokeStyle = '#FFFFFF';
             this.ctx.lineWidth = 3;
-            this.ctx.strokeText('PRESS ENTER OR SPACE TO START', this.canvas.width / 2, boxY + 440);
-            this.ctx.fillText('PRESS ENTER OR SPACE TO START', this.canvas.width / 2, boxY + 440);
+            const startText = this.isMobile ? 'ÉRINTSD MEG A KÉPERNYŐT' : 'PRESS ENTER OR SPACE TO START';
+            this.ctx.strokeText(startText, this.canvas.width / 2, boxY + boxHeight - 40);
+            this.ctx.fillText(startText, this.canvas.width / 2, boxY + boxHeight - 40);
         }
         
         this.ctx.textAlign = 'left';
@@ -159,8 +174,8 @@ export class ScreenManager {
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        const boxWidth = 600;
-        const boxHeight = 400;
+        const boxWidth = this.isMobile ? this.canvas.width - 40 : 600;
+        const boxHeight = this.isMobile ? this.canvas.height - 100 : 400;
         const boxX = (this.canvas.width - boxWidth) / 2;
         const boxY = (this.canvas.height - boxHeight) / 2;
         
@@ -172,29 +187,29 @@ export class ScreenManager {
         this.ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
         
         this.ctx.fillStyle = '#FFD700';
-        this.ctx.font = 'bold 48px Arial';
+        this.ctx.font = this.isMobile ? 'bold 24px Arial' : 'bold 48px Arial';
         this.ctx.textAlign = 'center';
         this.ctx.strokeStyle = '#000000';
         this.ctx.lineWidth = 3;
-        this.ctx.strokeText('🏁 RACE COMPLETE! 🏁', this.canvas.width / 2, boxY + 80);
-        this.ctx.fillText('🏁 RACE COMPLETE! 🏁', this.canvas.width / 2, boxY + 80);
+        this.ctx.strokeText('🏁 RACE COMPLETE! 🏁', this.canvas.width / 2, boxY + (this.isMobile ? 50 : 80));
+        this.ctx.fillText('🏁 RACE COMPLETE! 🏁', this.canvas.width / 2, boxY + (this.isMobile ? 50 : 80));
         
         const finishTimeSeconds = (gameEngine.game.finishTime / 1000).toFixed(2);
         const avgSpeed = Math.floor((gameEngine.game.trackLength / 1000) / (gameEngine.game.finishTime / 1000 / 3600));
         
         this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = 'bold 24px Arial';
+        this.ctx.font = this.isMobile ? 'bold 16px Arial' : 'bold 24px Arial';
         
-        this.ctx.strokeText(`Time: ${finishTimeSeconds}s`, this.canvas.width / 2, boxY + 140);
-        this.ctx.fillText(`Time: ${finishTimeSeconds}s`, this.canvas.width / 2, boxY + 140);
+        this.ctx.strokeText(`Time: ${finishTimeSeconds}s`, this.canvas.width / 2, boxY + (this.isMobile ? 90 : 140));
+        this.ctx.fillText(`Time: ${finishTimeSeconds}s`, this.canvas.width / 2, boxY + (this.isMobile ? 90 : 140));
         
-        this.ctx.strokeText(`Avg Speed: ${avgSpeed} KM/H`, this.canvas.width / 2, boxY + 180);
-        this.ctx.fillText(`Avg Speed: ${avgSpeed} KM/H`, this.canvas.width / 2, boxY + 180);
+        this.ctx.strokeText(`Avg Speed: ${avgSpeed} KM/H`, this.canvas.width / 2, boxY + (this.isMobile ? 120 : 180));
+        this.ctx.fillText(`Avg Speed: ${avgSpeed} KM/H`, this.canvas.width / 2, boxY + (this.isMobile ? 120 : 180));
         
         this.ctx.fillStyle = '#AAAAAA';
-        this.ctx.font = '18px Arial';
-        this.ctx.strokeText('Press R to restart', this.canvas.width / 2, boxY + 340);
-        this.ctx.fillText('Press R to restart', this.canvas.width / 2, boxY + 340);
+        this.ctx.font = this.isMobile ? '14px Arial' : '18px Arial';
+        this.ctx.strokeText('Press R to restart', this.canvas.width / 2, boxY + boxHeight - 40);
+        this.ctx.fillText('Press R to restart', this.canvas.width / 2, boxY + boxHeight - 40);
         
         this.ctx.textAlign = 'left';
     }

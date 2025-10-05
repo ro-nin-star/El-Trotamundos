@@ -1,153 +1,185 @@
-export class MusicGenerator {
+import { MusicGenerator } from './MusicGenerator.js';
+
+export class AudioManager {
     constructor() {
         this.audioContext = null;
-        this.backgroundMusic = {
-            bassInterval: null,
-            melodyInterval: null,
-            drumInterval: null,
-            isPlaying: false
+        this.musicGenerator = new MusicGenerator();
+        this.sounds = {
+            muted: false
         };
+        this.engineOscillators = null;
+        this.engineGain = null;
     }
     
-    setAudioContext(audioContext) {
-        this.audioContext = audioContext;
+    init() {
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            this.musicGenerator.setAudioContext(this.audioContext);
+            this.createEngineSound();
+            console.log('🔊 Hang rendszer inicializálva');
+        } catch (error) {
+            console.log('❌ AudioContext hiba:', error);
+            this.sounds.muted = true;
+        }
+    }
+    
+    createMuteButton() {
+        const muteButton = document.createElement('button');
+        muteButton.innerHTML = '🔊 SOUND ON';
+        muteButton.style.cssText = `
+            position: absolute; top: 10px; right: 10px; padding: 10px 15px;
+            background: #333; color: white; border: 2px solid #00FFFF;
+            border-radius: 5px; cursor: pointer; font-family: Arial;
+            font-size: 14px; z-index: 1000;
+        `;
+        
+        muteButton.addEventListener('click', () => {
+            this.toggleMute();
+            muteButton.innerHTML = this.sounds.muted ? '🔇 SOUND OFF' : '🔊 SOUND ON';
+            muteButton.style.borderColor = this.sounds.muted ? '#FF4444' : '#00FFFF';
+        });
+        
+        document.body.appendChild(muteButton);
+    }
+    
+    toggleMute() {
+        this.sounds.muted = !this.sounds.muted;
+        
+        if (this.sounds.muted) {
+            this.stopEngineSound();
+            this.musicGenerator.stopBackgroundMusic();
+        } else {
+            this.createEngineSound();
+        }
+        
+        console.log('🔊 Hang:', this.sounds.muted ? 'KIKAPCSOLVA' : 'BEKAPCSOLVA');
     }
     
     startBackgroundMusic() {
-        if (!this.backgroundMusic.isPlaying && this.audioContext) {
-            console.log('🎵 Háttérzene indítása...');
-            this.createTechnoBass();
-            this.createMelodicLead();
-            this.createTechnoBeats();
-            this.backgroundMusic.isPlaying = true;
+        if (!this.sounds.muted) {
+            this.musicGenerator.startBackgroundMusic();
         }
     }
     
     stopBackgroundMusic() {
-        if (this.backgroundMusic.bassInterval) {
-            clearInterval(this.backgroundMusic.bassInterval);
-            this.backgroundMusic.bassInterval = null;
-        }
-        if (this.backgroundMusic.melodyInterval) {
-            clearInterval(this.backgroundMusic.melodyInterval);
-            this.backgroundMusic.melodyInterval = null;
-        }
-        if (this.backgroundMusic.drumInterval) {
-            clearInterval(this.backgroundMusic.drumInterval);
-            this.backgroundMusic.drumInterval = null;
-        }
-        this.backgroundMusic.isPlaying = false;
-        console.log('🎵 Háttérzene leállítva');
+        this.musicGenerator.stopBackgroundMusic();
     }
     
-    createTechnoBass() {
-        const bassPattern = [
-            { note: 41.20, duration: 0.25 },
-            { note: 0, duration: 0.25 },
-            { note: 41.20, duration: 0.15 },
-            { note: 46.25, duration: 0.35 }
-        ];
+    createEngineSound() {
+        if (this.sounds.muted || !this.audioContext) return;
         
-        let patternIndex = 0;
-        
-        const playTechnoBass = () => {
-            if (!this.audioContext) return;
+        try {
+            this.stopEngineSound();
             
-            const currentNote = bassPattern[patternIndex % bassPattern.length];
+            this.engineOscillators = [];
+            this.engineGain = this.audioContext.createGain();
             
-            if (currentNote.note > 0) {
-                const bassOsc = this.audioContext.createOscillator();
-                const bassGain = this.audioContext.createGain();
-                
-                bassOsc.type = 'sawtooth';
-                bassOsc.frequency.setValueAtTime(currentNote.note, this.audioContext.currentTime);
-                
-                bassGain.gain.setValueAtTime(0.15, this.audioContext.currentTime);
-                bassGain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + currentNote.duration);
-                
-                bassOsc.connect(bassGain);
-                bassGain.connect(this.audioContext.destination);
-                
-                bassOsc.start();
-                bassOsc.stop(this.audioContext.currentTime + currentNote.duration);
-            }
+            const baseOsc = this.audioContext.createOscillator();
+            baseOsc.type = 'sawtooth';
+            baseOsc.frequency.setValueAtTime(50, this.audioContext.currentTime);
             
-            patternIndex++;
-        };
-        
-        playTechnoBass();
-        this.backgroundMusic.bassInterval = setInterval(playTechnoBass, 200);
+            const baseGain = this.audioContext.createGain();
+            baseGain.gain.setValueAtTime(0.15, this.audioContext.currentTime);
+            
+            baseOsc.connect(baseGain);
+            baseGain.connect(this.engineGain);
+            this.engineGain.connect(this.audioContext.destination);
+            
+            baseOsc.start();
+            
+            this.engineOscillators = [
+                { osc: baseOsc, gain: baseGain, type: 'base' }
+            ];
+        } catch (error) {
+            console.log('❌ Engine sound hiba:', error);
+        }
     }
     
-    createMelodicLead() {
-        const melody = [
-            { note: 659.25, duration: 0.8 },
-            { note: 783.99, duration: 0.4 },
-            { note: 880.00, duration: 0.6 },
-            { note: 987.77, duration: 0.4 }
-        ];
-        
-        let melodyIndex = 0;
-        
-        const playMelodicLead = () => {
-            if (!this.audioContext) return;
-            
-            const currentNote = melody[melodyIndex % melody.length];
-            
-            const leadOsc = this.audioContext.createOscillator();
-            const leadGain = this.audioContext.createGain();
-            
-            leadOsc.type = 'sawtooth';
-            leadOsc.frequency.setValueAtTime(currentNote.note, this.audioContext.currentTime);
-            
-            leadGain.gain.setValueAtTime(0, this.audioContext.currentTime);
-            leadGain.gain.linearRampToValueAtTime(0.08, this.audioContext.currentTime + 0.1);
-            leadGain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + currentNote.duration);
-            
-            leadOsc.connect(leadGain);
-            leadGain.connect(this.audioContext.destination);
-            
-            leadOsc.start();
-            leadOsc.stop(this.audioContext.currentTime + currentNote.duration);
-            
-            melodyIndex++;
-        };
-        
-        setTimeout(() => {
-            playMelodicLead();
-            this.backgroundMusic.melodyInterval = setInterval(playMelodicLead, 600);
-        }, 300);
+    stopEngineSound() {
+        if (this.engineOscillators) {
+            this.engineOscillators.forEach(oscData => {
+                try {
+                    oscData.osc.stop();
+                } catch (e) {}
+            });
+            this.engineOscillators = null;
+        }
     }
     
-    createTechnoBeats() {
-        let beatIndex = 0;
+    updateEngineSound(gameData) {
+        if (!this.engineOscillators || !this.engineGain || this.sounds.muted || !this.audioContext) return;
         
-        const playTechnoBeats = () => {
-            if (!this.audioContext) return;
+        try {
+            const speedPercent = gameData.speed / gameData.maxSpeed;
+            const rpm = gameData.actualRPM;
+            
+            const baseFreq = 30 + (rpm / 9000) * 80;
+            const volume = 0.08 + (speedPercent * 0.12);
+            
+            this.engineOscillators.forEach(oscData => {
+                const now = this.audioContext.currentTime;
+                oscData.osc.frequency.setValueAtTime(baseFreq, now);
+                oscData.gain.gain.setValueAtTime(volume * 1.5, now);
+            });
+        } catch (error) {
+            console.log('❌ Engine update hiba:', error);
+        }
+    }
+    
+    playSound(type, frequency = 440, duration = 0.1, volume = 0.3) {
+        if (!this.audioContext || this.sounds.muted) return;
+        
+        try {
+            const oscillator = this.audioContext.createOscillator();
+            const gainNode = this.audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
             
             const now = this.audioContext.currentTime;
             
-            if (beatIndex % 4 === 0) {
-                const kickOsc = this.audioContext.createOscillator();
-                const kickGain = this.audioContext.createGain();
-                
-                kickOsc.type = 'sine';
-                kickOsc.frequency.setValueAtTime(60, now);
-                kickOsc.frequency.exponentialRampToValueAtTime(30, now + 0.1);
-                
-                kickGain.gain.setValueAtTime(0.12, now);
-                kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-                
-                kickOsc.connect(kickGain);
-                kickGain.connect(this.audioContext.destination);
-                
-                kickOsc.start(now);
-                kickOsc.stop(now + 0.2);
+            switch(type) {
+                case 'finish':
+                    const notes = [262, 330, 392, 523];
+                    notes.forEach((note, i) => {
+                        const osc = this.audioContext.createOscillator();
+                        const gain = this.audioContext.createGain();
+                        osc.connect(gain);
+                        gain.connect(this.audioContext.destination);
+                        
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(note, now + i * 0.25);
+                        gain.gain.setValueAtTime(0.25, now + i * 0.25);
+                        gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.25 + 0.4);
+                        
+                        osc.start(now + i * 0.25);
+                        osc.stop(now + i * 0.25 + 0.4);
+                    });
+                    break;
+                    
+                case 'collision':
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(150, now);
+                    oscillator.frequency.exponentialRampToValueAtTime(30, now + 0.4);
+                    gainNode.gain.setValueAtTime(volume * 0.8, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.4);
+                    break;
+                    
+                case 'gearShift':
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(200, now);
+                    oscillator.frequency.setValueAtTime(250, now + 0.03);
+                    oscillator.frequency.setValueAtTime(180, now + 0.06);
+                    gainNode.gain.setValueAtTime(0.15, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                    oscillator.start(now);
+                    oscillator.stop(now + 0.12);
+                    break;
             }
-            
-            beatIndex++;
-        };
-        
-        this.backgroundMusic.drumInterval = setInterval(playTechnoBeats, 150);
+        } catch (error) {
+            console.log('❌ Sound play hiba:', error);
+        }
     }
 }

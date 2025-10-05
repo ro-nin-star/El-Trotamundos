@@ -41,6 +41,8 @@ export class MusicGenerator {
     }
     
     createTechnoBass() {
+        if (!this.audioContext) return;
+        
         const bassPattern = [
             { note: 41.20, duration: 0.25 },
             { note: 0, duration: 0.25 },
@@ -53,26 +55,30 @@ export class MusicGenerator {
         const playTechnoBass = () => {
             if (!this.audioContext) return;
             
-            const currentNote = bassPattern[patternIndex % bassPattern.length];
-            
-            if (currentNote.note > 0) {
-                const bassOsc = this.audioContext.createOscillator();
-                const bassGain = this.audioContext.createGain();
+            try {
+                const currentNote = bassPattern[patternIndex % bassPattern.length];
                 
-                bassOsc.type = 'sawtooth';
-                bassOsc.frequency.setValueAtTime(currentNote.note, this.audioContext.currentTime);
+                if (currentNote.note > 0) {
+                    const bassOsc = this.audioContext.createOscillator();
+                    const bassGain = this.audioContext.createGain();
+                    
+                    bassOsc.type = 'sawtooth';
+                    bassOsc.frequency.setValueAtTime(currentNote.note, this.audioContext.currentTime);
+                    
+                    bassGain.gain.setValueAtTime(0.15, this.audioContext.currentTime);
+                    bassGain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + currentNote.duration);
+                    
+                    bassOsc.connect(bassGain);
+                    bassGain.connect(this.audioContext.destination);
+                    
+                    bassOsc.start();
+                    bassOsc.stop(this.audioContext.currentTime + currentNote.duration);
+                }
                 
-                bassGain.gain.setValueAtTime(0.15, this.audioContext.currentTime);
-                bassGain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + currentNote.duration);
-                
-                bassOsc.connect(bassGain);
-                bassGain.connect(this.audioContext.destination);
-                
-                bassOsc.start();
-                bassOsc.stop(this.audioContext.currentTime + currentNote.duration);
+                patternIndex++;
+            } catch (error) {
+                console.log('❌ Bass hiba:', error);
             }
-            
-            patternIndex++;
         };
         
         playTechnoBass();
@@ -80,6 +86,8 @@ export class MusicGenerator {
     }
     
     createMelodicLead() {
+        if (!this.audioContext) return;
+        
         const melody = [
             { note: 659.25, duration: 0.8 },
             { note: 783.99, duration: 0.4 },
@@ -92,25 +100,29 @@ export class MusicGenerator {
         const playMelodicLead = () => {
             if (!this.audioContext) return;
             
-            const currentNote = melody[melodyIndex % melody.length];
-            
-            const leadOsc = this.audioContext.createOscillator();
-            const leadGain = this.audioContext.createGain();
-            
-            leadOsc.type = 'sawtooth';
-            leadOsc.frequency.setValueAtTime(currentNote.note, this.audioContext.currentTime);
-            
-            leadGain.gain.setValueAtTime(0, this.audioContext.currentTime);
-            leadGain.gain.linearRampToValueAtTime(0.08, this.audioContext.currentTime + 0.1);
-            leadGain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + currentNote.duration);
-            
-            leadOsc.connect(leadGain);
-            leadGain.connect(this.audioContext.destination);
-            
-            leadOsc.start();
-            leadOsc.stop(this.audioContext.currentTime + currentNote.duration);
-            
-            melodyIndex++;
+            try {
+                const currentNote = melody[melodyIndex % melody.length];
+                
+                const leadOsc = this.audioContext.createOscillator();
+                const leadGain = this.audioContext.createGain();
+                
+                leadOsc.type = 'sawtooth';
+                leadOsc.frequency.setValueAtTime(currentNote.note, this.audioContext.currentTime);
+                
+                leadGain.gain.setValueAtTime(0, this.audioContext.currentTime);
+                leadGain.gain.linearRampToValueAtTime(0.08, this.audioContext.currentTime + 0.1);
+                leadGain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + currentNote.duration);
+                
+                leadOsc.connect(leadGain);
+                leadGain.connect(this.audioContext.destination);
+                
+                leadOsc.start();
+                leadOsc.stop(this.audioContext.currentTime + currentNote.duration);
+                
+                melodyIndex++;
+            } catch (error) {
+                console.log('❌ Lead hiba:', error);
+            }
         };
         
         setTimeout(() => {
@@ -120,32 +132,38 @@ export class MusicGenerator {
     }
     
     createTechnoBeats() {
+        if (!this.audioContext) return;
+        
         let beatIndex = 0;
         
         const playTechnoBeats = () => {
             if (!this.audioContext) return;
             
-            const now = this.audioContext.currentTime;
-            
-            if (beatIndex % 4 === 0) {
-                const kickOsc = this.audioContext.createOscillator();
-                const kickGain = this.audioContext.createGain();
+            try {
+                const now = this.audioContext.currentTime;
                 
-                kickOsc.type = 'sine';
-                kickOsc.frequency.setValueAtTime(60, now);
-                kickOsc.frequency.exponentialRampToValueAtTime(30, now + 0.1);
+                if (beatIndex % 4 === 0) {
+                    const kickOsc = this.audioContext.createOscillator();
+                    const kickGain = this.audioContext.createGain();
+                    
+                    kickOsc.type = 'sine';
+                    kickOsc.frequency.setValueAtTime(60, now);
+                    kickOsc.frequency.exponentialRampToValueAtTime(30, now + 0.1);
+                    
+                    kickGain.gain.setValueAtTime(0.12, now);
+                    kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                    
+                    kickOsc.connect(kickGain);
+                    kickGain.connect(this.audioContext.destination);
+                    
+                    kickOsc.start(now);
+                    kickOsc.stop(now + 0.2);
+                }
                 
-                kickGain.gain.setValueAtTime(0.12, now);
-                kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-                
-                kickOsc.connect(kickGain);
-                kickGain.connect(this.audioContext.destination);
-                
-                kickOsc.start(now);
-                kickOsc.stop(now + 0.2);
+                beatIndex++;
+            } catch (error) {
+                console.log('❌ Beats hiba:', error);
             }
-            
-            beatIndex++;
         };
         
         this.backgroundMusic.drumInterval = setInterval(playTechnoBeats, 150);

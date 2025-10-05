@@ -1,8 +1,48 @@
 <!DOCTYPE html>
-<html>
+<html lang="hu">
 <head>
-    <title>OutRun Racing</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Racing Lotus - OutRun Style Game</title>
     <link rel="stylesheet" href="css/style.css">
+    <!-- ⭐ FAVICON HOZZÁADÁSA -->
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏎️</text></svg>">
+    <style>
+        /* ⭐ MOBIL OPTIMALIZÁCIÓ */
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background: #000;
+            touch-action: none;
+        }
+        
+        /* Mobil viewport fix */
+        @media (max-width: 768px) {
+            html, body {
+                height: 100vh;
+                height: -webkit-fill-available;
+                overflow: hidden;
+            }
+            
+            canvas {
+                width: 100vw !important;
+                height: auto !important;
+                max-height: 100vh;
+            }
+        }
+    </style>
 </head>
 <body>
     <script type="module" src="js/main.js"></script>
