@@ -112,8 +112,8 @@ export class ScreenManager {
         this.ctx.textAlign = 'center';
         this.ctx.strokeStyle = '#000000';
         this.ctx.lineWidth = 3;
-        this.ctx.strokeText('RACING LOTUS', this.canvas.width / 2, boxY + (this.isMobile ? 60 : 80));
-        this.ctx.fillText('RACING LOTUS', this.canvas.width / 2, boxY + (this.isMobile ? 60 : 80));
+        this.ctx.strokeText('RACSING GT', this.canvas.width / 2, boxY + (this.isMobile ? 60 : 80));
+        this.ctx.fillText('RACSING GT', this.canvas.width / 2, boxY + (this.isMobile ? 60 : 80));
         
         // Irányítás
         this.ctx.fillStyle = '#FFFFFF';
