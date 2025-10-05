@@ -21,7 +21,7 @@ export class AssetLoader {
                 'assets/enemy-car2.png',
                 'assets/enemy-car3.png',
                 'assets/enemy-car4.png',
-
+                'assets/enemy-car5.png'
             ];
             
             this.assets.enemies = [];
