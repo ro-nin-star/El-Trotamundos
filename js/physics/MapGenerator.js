@@ -5,24 +5,30 @@ export class MapGenerator {
         this.mapImageData = null;
         this.mapWidth = 0;
         this.mapHeight = 0;
-        this.originalImage = null; // ⭐ EREDETI KÉP TÁROLÁSA A MINI TÉRKÉPHEZ
+        this.originalImage = null;
         
-        // ⭐ SZÍN KÓDOK A TÉRKÉP ELEMEKHEZ
+        // ⭐ FRISSÍTETT SZÍN KÓDOK A VALÓS TÉRKÉP ALAPJÁN
         this.colorMap = {
-            grass: { r: 128, g: 0, b: 128, tolerance: 50 },      // Lila - fű (nagyobb tolerancia)
-            river: { r: 0, g: 0, b: 255, tolerance: 60 },        // Kék - folyók
-            highway: { r: 255, g: 255, b: 0, tolerance: 50 },    // Sárga - főutak
-            road: { r: 255, g: 255, b: 255, tolerance: 40 },     // Fehér - alsóbb rangú utak
-            roadBorder: { r: 255, g: 0, b: 0, tolerance: 40 },   // Piros - út szegély
-            city: { r: 128, g: 128, b: 128, tolerance: 60 },     // Szürke - város
-            // ⭐ TOVÁBBI SZÍNEK A VALÓS TÉRKÉPHEZ
-            forest: { r: 0, g: 128, b: 0, tolerance: 50 },       // Zöld - erdő
-            mountain: { r: 139, g: 69, b: 19, tolerance: 50 },   // Barna - hegyek
-            water: { r: 173, g: 216, b: 230, tolerance: 50 }     // Világoskék - víz
+            // Eredeti színek (ha valaki más térképet használ)
+            grass: { r: 128, g: 0, b: 128, tolerance: 50 },
+            river: { r: 0, g: 0, b: 255, tolerance: 60 },
+            highway: { r: 255, g: 255, b: 0, tolerance: 50 },
+            road: { r: 255, g: 255, b: 255, tolerance: 40 },
+            roadBorder: { r: 255, g: 0, b: 0, tolerance: 40 },
+            city: { r: 128, g: 128, b: 128, tolerance: 60 },
+            
+            // ⭐ BORSOD MEGYE TÉRKÉP SPECIFIKUS SZÍNEK
+            realRoad: { r: 255, g: 255, b: 255, tolerance: 30 },     // Fehér utak
+            realHighway: { r: 255, g: 0, b: 0, tolerance: 40 },      // Piros főutak
+            realCity: { r: 0, g: 0, b: 0, tolerance: 50 },           // Fekete városok
+            realWater: { r: 0, g: 0, b: 255, tolerance: 60 },        // Kék víz
+            realForest: { r: 0, g: 128, g: 0, tolerance: 50 },       // Zöld erdő
+            realBackground: { r: 255, g: 255, b: 224, tolerance: 30 } // Krém háttér
         };
         
         this.terrainData = [];
-        this.routePoints = []; // ⭐ ÚTVONAL PONTOK A MINI TÉRKÉPHEZ
+        this.routePoints = [];
+        this.roadNetwork = []; // ⭐ FELISMERT ÚTHÁLÓZAT
     }
     
     // ⭐ TÉRKÉP BETÖLTÉSE ÉS ELEMZÉSE
@@ -32,7 +38,7 @@ export class MapGenerator {
             img.crossOrigin = 'anonymous';
             
             img.onload = () => {
-                this.originalImage = img; // ⭐ EREDETI KÉP MENTÉSE
+                this.originalImage = img;
                 this.processMapImage(img);
                 console.log(`✅ Térkép feldolgozva: ${this.mapWidth}x${this.mapHeight}px`);
                 resolve();
@@ -53,8 +59,7 @@ export class MapGenerator {
         this.mapCanvas = document.createElement('canvas');
         this.mapCtx = this.mapCanvas.getContext('2d');
         
-        // ⭐ MÉRETEZÉS (NAGYOBB FELBONTÁS A HOSSZABB PÁLYÁHOZ)
-        const maxSize = 1024; // Nagyobb méret = hosszabb pálya
+        const maxSize = 800; // Optimális méret
         let width = img.width;
         let height = img.height;
         
@@ -69,29 +74,157 @@ export class MapGenerator {
         this.mapWidth = width;
         this.mapHeight = height;
         
-        // ⭐ KÉP RAJZOLÁSA ÉS PIXEL ADATOK KINYERÉSE
         this.mapCtx.drawImage(img, 0, 0, width, height);
         this.mapImageData = this.mapCtx.getImageData(0, 0, width, height);
+        
+        // ⭐ SZÍNEK ELEMZÉSE ÉS DEBUG
+        this.analyzeMapColors();
         
         // ⭐ TEREP ADATOK ELEMZÉSE
         this.analyzeTerrainData();
         
-        // ⭐ ÚTVONAL PONTOK GENERÁLÁSA
-        this.generateRoutePoints();
+        // ⭐ ÚTHÁLÓZAT FELISMERÉSE
+        this.detectRoadNetwork();
+        
+        // ⭐ ÚTVONAL PONTOK GENERÁLÁSA AZ UTAK ALAPJÁN
+        this.generateRouteFromRoads();
     }
     
-    // ⭐ ÚTVONAL PONTOK GENERÁLÁSA (SPIRÁL VAGY CIKK-CAKK)
-    generateRoutePoints() {
+    // ⭐ TÉRKÉP SZÍNEINEK ELEMZÉSE (DEBUG)
+    analyzeMapColors() {
+        const colorCounts = {};
+        const data = this.mapImageData.data;
+        const sampleStep = 10; // Minden 10. pixel mintavételezése
+        
+        for (let i = 0; i < data.length; i += 4 * sampleStep) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            
+            const colorKey = `${r},${g},${b}`;
+            colorCounts[colorKey] = (colorCounts[colorKey] || 0) + 1;
+        }
+        
+        // ⭐ LEGGYAKORIBB SZÍNEK KIÍRÁSA
+        const sortedColors = Object.entries(colorCounts)
+            .sort(([,a], [,b]) => b - a)
+            .slice(0, 10);
+        
+        console.log('🎨 Térkép leggyakoribb színei:');
+        sortedColors.forEach(([color, count], index) => {
+            const [r, g, b] = color.split(',').map(Number);
+            console.log(`${index + 1}. RGB(${r},${g},${b}) - ${count} pixel`);
+        });
+    }
+    
+    // ⭐ ÚTHÁLÓZAT FELISMERÉSE
+    detectRoadNetwork() {
+        this.roadNetwork = [];
+        const data = this.mapImageData.data;
+        
+        // ⭐ PIROS VONALAK KERESÉSE (FŐUTAK)
+        for (let y = 0; y < this.mapHeight; y++) {
+            for (let x = 0; x < this.mapWidth; x++) {
+                const index = (y * this.mapWidth + x) * 4;
+                const r = data[index];
+                const g = data[index + 1];
+                const b = data[index + 2];
+                
+                // ⭐ PIROS FŐÚT DETEKTÁLÁS
+                if (r > 200 && g < 100 && b < 100) {
+                    this.roadNetwork.push({
+                        x: x,
+                        y: y,
+                        type: 'highway',
+                        color: { r, g, b }
+                    });
+                }
+                
+                // ⭐ FEHÉR/VILÁGOS ÚT DETEKTÁLÁS
+                else if (r > 220 && g > 220 && b > 220) {
+                    this.roadNetwork.push({
+                        x: x,
+                        y: y,
+                        type: 'road',
+                        color: { r, g, b }
+                    });
+                }
+                
+                // ⭐ SÁRGA ÚT DETEKTÁLÁS
+                else if (r > 200 && g > 200 && b < 100) {
+                    this.roadNetwork.push({
+                        x: x,
+                        y: y,
+                        type: 'highway',
+                        color: { r, g, b }
+                    });
+                }
+            }
+        }
+        
+        console.log(`🛣️ Úthálózat felismerve: ${this.roadNetwork.length} út pixel`);
+    }
+    
+    // ⭐ ÚTVONAL GENERÁLÁSA AZ UTAK ALAPJÁN
+    generateRouteFromRoads() {
         this.routePoints = [];
-        const totalPoints = Math.max(2000, this.mapHeight * 4); // ⭐ SOKKAL TÖBB PONT = HOSSZABB PÁLYA
+        
+        if (this.roadNetwork.length === 0) {
+            console.warn('⚠️ Nincs felismert út, spirál útvonal generálása');
+            this.generateSpiralRoute();
+            return;
+        }
+        
+        // ⭐ UTAK CSOPORTOSÍTÁSA Y KOORDINÁTA SZERINT
+        const roadGroups = {};
+        this.roadNetwork.forEach(road => {
+            const yGroup = Math.floor(road.y / 5) * 5; // 5 pixeles csoportok
+            if (!roadGroups[yGroup]) {
+                roadGroups[yGroup] = [];
+            }
+            roadGroups[yGroup].push(road);
+        });
+        
+        // ⭐ ÚTVONAL ÉPÍTÉSE FENTRŐL LEFELÉ
+        const sortedYGroups = Object.keys(roadGroups)
+            .map(Number)
+            .sort((a, b) => a - b);
+        
+        sortedYGroups.forEach(yGroup => {
+            const roads = roadGroups[yGroup];
+            
+            // ⭐ X KOORDINÁTA SZERINT RENDEZÉS
+            roads.sort((a, b) => a.x - b.x);
+            
+            // ⭐ MINDEN 10. ÚT PIXEL HOZZÁADÁSA
+            for (let i = 0; i < roads.length; i += 10) {
+                this.routePoints.push({
+                    x: roads[i].x,
+                    y: roads[i].y,
+                    type: roads[i].type
+                });
+            }
+        });
+        
+        // ⭐ HA TÚLSÁGOSAN KEVÉS PONT, KIEGÉSZÍTÉS
+        if (this.routePoints.length < 500) {
+            console.log('🔄 Kevés útvonal pont, kiegészítés...');
+            this.extendRoute();
+        }
+        
+        console.log(`🛣️ Útvonal generálva: ${this.routePoints.length} pont`);
+    }
+    
+    // ⭐ SPIRÁL ÚTVONAL GENERÁLÁSA (FALLBACK)
+    generateSpiralRoute() {
+        this.routePoints = [];
+        const totalPoints = 1500;
         
         for (let i = 0; i < totalPoints; i++) {
             const progress = i / totalPoints;
-            
-            // ⭐ SPIRÁL ÚTVONAL A TÉRKÉP KÖRÜL
-            const spiralTurns = 3; // Hányszor kerüljük körbe a térképet
+            const spiralTurns = 2;
             const angle = progress * spiralTurns * Math.PI * 2;
-            const radius = (this.mapWidth / 4) * (1 - progress * 0.7); // Spirál befelé
+            const radius = (this.mapWidth / 4) * (1 - progress * 0.5);
             
             const centerX = this.mapWidth / 2;
             const centerY = this.mapHeight / 2;
@@ -100,13 +233,41 @@ export class MapGenerator {
                 centerX + Math.cos(angle) * radius
             ));
             const y = Math.max(10, Math.min(this.mapHeight - 10, 
-                centerY + Math.sin(angle) * radius + progress * this.mapHeight * 0.3
+                centerY + Math.sin(angle) * radius + progress * this.mapHeight * 0.4
             ));
             
-            this.routePoints.push({ x: Math.floor(x), y: Math.floor(y) });
+            this.routePoints.push({ 
+                x: Math.floor(x), 
+                y: Math.floor(y),
+                type: 'highway'
+            });
         }
+    }
+    
+    // ⭐ ÚTVONAL KIEGÉSZÍTÉSE
+    extendRoute() {
+        const originalLength = this.routePoints.length;
+        const targetLength = 1000;
         
-        console.log(`🛣️ Útvonal generálva: ${this.routePoints.length} pont`);
+        for (let i = originalLength; i < targetLength; i++) {
+            const baseIndex = i % originalLength;
+            const basePoint = this.routePoints[baseIndex];
+            
+            // ⭐ VARIÁCIÓ HOZZÁADÁSA
+            const variation = (i - originalLength) * 2;
+            const x = Math.max(0, Math.min(this.mapWidth - 1, 
+                basePoint.x + (Math.random() - 0.5) * variation
+            ));
+            const y = Math.max(0, Math.min(this.mapHeight - 1, 
+                basePoint.y + variation
+            ));
+            
+            this.routePoints.push({
+                x: Math.floor(x),
+                y: Math.floor(y),
+                type: basePoint.type || 'road'
+            });
+        }
     }
     
     // ⭐ TEREP ADATOK ELEMZÉSE
@@ -122,7 +283,7 @@ export class MapGenerator {
                 const g = data[index + 1];
                 const b = data[index + 2];
                 
-                const terrainType = this.identifyTerrain(r, g, b);
+                const terrainType = this.identifyTerrainAdvanced(r, g, b);
                 row.push({
                     type: terrainType,
                     color: { r, g, b },
@@ -136,62 +297,73 @@ export class MapGenerator {
         console.log(`🗺️ Terep elemzés kész: ${this.terrainData.length} sor`);
     }
     
-    // ⭐ TEREP TÍPUS AZONOSÍTÁSA SZÍN ALAPJÁN (JAVÍTOTT)
-    identifyTerrain(r, g, b) {
-        let bestMatch = 'grass';
-        let bestDistance = Infinity;
-        
-        for (const [type, color] of Object.entries(this.colorMap)) {
-            const distance = Math.sqrt(
-                Math.pow(r - color.r, 2) +
-                Math.pow(g - color.g, 2) +
-                Math.pow(b - color.b, 2)
-            );
-            
-            if (distance < color.tolerance && distance < bestDistance) {
-                bestDistance = distance;
-                bestMatch = type;
-            }
+    // ⭐ FEJLETT TEREP TÍPUS AZONOSÍTÁS
+    identifyTerrainAdvanced(r, g, b) {
+        // ⭐ PIROS FŐUTAK
+        if (r > 200 && g < 100 && b < 100) {
+            return 'highway';
         }
         
-        // ⭐ SPECIÁLIS ESETEK BORSOD MEGYE TÉRKÉPHEZ
-        if (r > 200 && g > 200 && b > 200) {
-            return 'road'; // Világos területek = utak
-        }
-        if (r < 100 && g < 100 && b > 150) {
-            return 'river'; // Sötétkék = folyók
-        }
-        if (r > 150 && g > 150 && b < 100) {
-            return 'city'; // Sárgás = városok
+        // ⭐ FEHÉR UTAK
+        if (r > 220 && g > 220 && b > 220) {
+            return 'road';
         }
         
-        return bestMatch;
+        // ⭐ SÁRGA UTAK
+        if (r > 200 && g > 200 && b < 100) {
+            return 'highway';
+        }
+        
+        // ⭐ KÉK VÍZ
+        if (b > r + 50 && b > g + 50 && b > 100) {
+            return 'river';
+        }
+        
+        // ⭐ ZÖLD ERDŐ
+        if (g > r + 30 && g > b + 30 && g > 80) {
+            return 'forest';
+        }
+        
+        // ⭐ FEKETE VÁROSOK
+        if (r < 50 && g < 50 && b < 50) {
+            return 'city';
+        }
+        
+        // ⭐ SZÜRKE TERÜLETEK
+        if (Math.abs(r - g) < 20 && Math.abs(g - b) < 20 && r > 100 && r < 200) {
+            return 'city';
+        }
+        
+        // ⭐ ALAPÉRTELMEZETT: FŰ
+        return 'grass';
     }
     
-    // ⭐ MAGASSÁG SZÁMÍTÁSA TEREP TÍPUS ALAPJÁN
+    // ⭐ MAGASSÁG SZÁMÍTÁSA
     calculateElevation(terrainType) {
         const elevations = {
             grass: 0,
-            forest: 20,      // Erdők magasabban
-            river: -50,      // Folyók mélyebben
-            water: -30,      // Víz mélyebben
-            highway: 10,     // Főutak kicsit magasabban
-            road: 5,         // Utak kicsit magasabban
-            roadBorder: 5,
-            city: 30,        // Városok magasabban
-            mountain: 100    // Hegyek magasan
+            forest: 20,
+            river: -50,
+            highway: 15,
+            road: 8,
+            city: 25,
+            mountain: 80
         };
         
         return elevations[terrainType] || 0;
     }
     
-    // ⭐ KANYAR SZÁMÍTÁSA KÖRNYEZET ALAPJÁN
+    // ⭐ KANYAR SZÁMÍTÁSA
     calculateCurve(terrainType, x, y) {
+        if (terrainType !== 'highway' && terrainType !== 'road') {
+            return 0;
+        }
+        
         // ⭐ KÖRNYEZŐ PIXELEK ELEMZÉSE
         let leftSimilar = 0;
         let rightSimilar = 0;
         
-        for (let dx = -2; dx <= 2; dx++) {
+        for (let dx = -3; dx <= 3; dx++) {
             for (let dy = -1; dy <= 1; dy++) {
                 if (dx === 0 && dy === 0) continue;
                 
@@ -210,25 +382,11 @@ export class MapGenerator {
             }
         }
         
-        // ⭐ KANYAR IRÁNY MEGHATÁROZÁSA
-        const curveFactor = (rightSimilar - leftSimilar) / 10;
-        return Math.max(-1, Math.min(1, curveFactor));
+        const curveFactor = (rightSimilar - leftSimilar) / 15;
+        return Math.max(-0.8, Math.min(0.8, curveFactor));
     }
     
-    // ⭐ TEREP TÍPUS LEKÉRÉSE KOORDINÁTA ALAPJÁN
-    getTerrainAt(x, y) {
-        if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) {
-            return 'grass';
-        }
-        
-        if (!this.terrainData[y] || !this.terrainData[y][x]) {
-            return 'grass';
-        }
-        
-        return this.terrainData[y][x].type;
-    }
-    
-    // ⭐ PÁLYA GENERÁLÁSA TÉRKÉP ALAPJÁN (JAVÍTOTT HOSSZÚ VERZIÓ)
+    // ⭐ PÁLYA GENERÁLÁSA TÉRKÉP ALAPJÁN
     generateTrackFromMap(game) {
         if (!this.terrainData.length || !this.routePoints.length) {
             console.warn('⚠️ Nincs térkép adat, alapértelmezett pálya generálása');
@@ -239,24 +397,24 @@ export class MapGenerator {
         game.road = [];
         game.signs = [];
         
-        // ⭐ PÁLYA HOSSZ AZ ÚTVONAL PONTOK ALAPJÁN
         const segmentLength = game.segmentLength;
-        const totalSegments = this.routePoints.length; // Útvonal pontok száma = szegmensek száma
-        game.trackLength = totalSegments * segmentLength; // ⭐ DINAMIKUS PÁLYA HOSSZ
+        const totalSegments = Math.max(1000, this.routePoints.length); // Minimum 1000 szegmens
+        game.trackLength = totalSegments * segmentLength;
         
         let currentHill = 0;
         let currentCurve = 0;
         
-        console.log(`🏗️ Hosszú pálya építése térképből: ${totalSegments} szegmens (${Math.round(game.trackLength/1000)}km)`);
+        console.log(`🏗️ Pálya építése térképből: ${totalSegments} szegmens (${Math.round(game.trackLength/1000)}km)`);
         
         for (let i = 0; i < totalSegments; i++) {
-            // ⭐ ÚTVONAL PONT LEKÉRÉSE
-            const routePoint = this.routePoints[i];
+            // ⭐ ÚTVONAL PONT LEKÉRÉSE (CIKLIKUS)
+            const routeIndex = i % this.routePoints.length;
+            const routePoint = this.routePoints[routeIndex];
             const terrain = this.getTerrainDataAt(routePoint.x, routePoint.y);
             
             // ⭐ MAGASSÁG ÉS KANYAR FRISSÍTÉSE
-            currentHill = this.smoothTransition(currentHill, terrain.elevation, 0.02);
-            currentCurve = this.smoothTransition(currentCurve, terrain.curve, 0.05);
+            currentHill = this.smoothTransition(currentHill, terrain.elevation, 0.03);
+            currentCurve = this.smoothTransition(currentCurve, terrain.curve, 0.08);
             
             // ⭐ SZEGMENS LÉTREHOZÁSA
             const segment = {
@@ -274,16 +432,14 @@ export class MapGenerator {
                 curve: currentCurve,
                 terrainType: terrain.type,
                 color: this.getSegmentColor(terrain.type, i),
-                mapPosition: { x: routePoint.x, y: routePoint.y } // ⭐ TÉRKÉP POZÍCIÓ TÁROLÁSA
+                mapPosition: { x: routePoint.x, y: routePoint.y }
             };
             
-            // ⭐ TÁBLÁK ELHELYEZÉSE
             this.placeSigns(game, terrain, i, segmentLength);
-            
             game.road.push(segment);
         }
         
-        console.log(`✅ Térkép alapú hosszú pálya kész: ${game.road.length} szegmens, ${game.signs.length} tábla`);
+        console.log(`✅ Térkép alapú pálya kész: ${game.road.length} szegmens, ${game.signs.length} tábla`);
     }
     
     // ⭐ TEREP ADAT LEKÉRÉSE KOORDINÁTÁKKAL
@@ -302,19 +458,17 @@ export class MapGenerator {
         return { type: 'grass', elevation: 0, curve: 0 };
     }
     
-    // ⭐ SIMA ÁTMENET SZÁMÍTÁSA
+    // ⭐ SIMA ÁTMENET
     smoothTransition(current, target, factor) {
         return current + (target - current) * factor;
     }
     
-    // ⭐ SZEGMENS SZÍN MEGHATÁROZÁSA TEREP TÍPUS ALAPJÁN
+    // ⭐ SZEGMENS SZÍN MEGHATÁROZÁSA
     getSegmentColor(terrainType, segmentIndex) {
         const baseColor = segmentIndex % 3 === 0 ? 'dark' : 'light';
         
-        // ⭐ TEREP SPECIFIKUS SZÍNEK
         switch (terrainType) {
             case 'river':
-            case 'water':
                 return segmentIndex % 2 === 0 ? 'water_dark' : 'water_light';
             case 'highway':
                 return segmentIndex % 2 === 0 ? 'highway_dark' : 'highway_light';
@@ -324,17 +478,14 @@ export class MapGenerator {
                 return segmentIndex % 2 === 0 ? 'road_dark' : 'road_light';
             case 'forest':
                 return segmentIndex % 2 === 0 ? 'forest_dark' : 'forest_light';
-            case 'mountain':
-                return segmentIndex % 2 === 0 ? 'mountain_dark' : 'mountain_light';
             default:
                 return baseColor;
         }
     }
     
-    // ⭐ TÁBLÁK ELHELYEZÉSE TEREP ALAPJÁN
+    // ⭐ TÁBLÁK ELHELYEZÉSE
     placeSigns(game, terrain, segmentIndex, segmentLength) {
-        // ⭐ VÁROS TÁBLÁK
-        if (terrain.type === 'city' && segmentIndex % 200 === 0) {
+        if (terrain.type === 'city' && segmentIndex % 250 === 0) {
             game.signs.push({
                 type: 'city',
                 cityName: this.getRandomCityName(),
@@ -344,8 +495,7 @@ export class MapGenerator {
             });
         }
         
-        // ⭐ SEBESSÉG TÁBLÁK
-        if ((terrain.type === 'highway' || terrain.type === 'road') && segmentIndex % 300 === 0) {
+        if ((terrain.type === 'highway' || terrain.type === 'road') && segmentIndex % 400 === 0) {
             const speedLimit = terrain.type === 'highway' ? 130 : 90;
             game.signs.push({
                 type: 'speed',
@@ -356,21 +506,20 @@ export class MapGenerator {
             });
         }
         
-        // ⭐ KANYAR TÁBLÁK
-        if (Math.abs(terrain.curve) > 0.4 && segmentIndex % 150 === 0) {
+        if (Math.abs(terrain.curve) > 0.4 && segmentIndex % 200 === 0) {
             const direction = terrain.curve > 0 ? 'right' : 'left';
             game.signs.push({
                 type: 'curve',
                 direction: direction,
-                z: (segmentIndex - 20) * segmentLength,
+                z: (segmentIndex - 30) * segmentLength,
                 offset: terrain.curve > 0 ? -0.7 : 0.7,
-                distance: 20 * segmentLength,
+                distance: 30 * segmentLength,
                 sprite: null
             });
         }
     }
     
-    // ⭐ VÉLETLENSZERŰ VÁROS NEVEK (BORSOD MEGYE)
+    // ⭐ BORSOD MEGYE VÁROSOK
     getRandomCityName() {
         const cities = [
             'MISKOLC', 'KAZINCBARCIKA', 'TISZAÚJVÁROS', 'ÓZDI', 'SÁTORALJAÚJHELY',
@@ -380,11 +529,11 @@ export class MapGenerator {
         return cities[Math.floor(Math.random() * cities.length)];
     }
     
-    // ⭐ ALAPÉRTELMEZETT TEREP GENERÁLÁSA (HA NINCS TÉRKÉP)
+    // ⭐ ALAPÉRTELMEZETT TEREP
     generateDefaultTerrain() {
         this.terrainData = [];
-        const defaultHeight = 500; // Nagyobb alapértelmezett méret
-        const defaultWidth = 500;
+        const defaultHeight = 400;
+        const defaultWidth = 400;
         
         for (let y = 0; y < defaultHeight; y++) {
             const row = [];
@@ -411,19 +560,19 @@ export class MapGenerator {
         this.mapWidth = defaultWidth;
         this.mapHeight = defaultHeight;
         
-        // ⭐ ALAPÉRTELMEZETT ÚTVONAL PONTOK
         this.routePoints = [];
-        for (let i = 0; i < 2000; i++) {
+        for (let i = 0; i < 1200; i++) {
             this.routePoints.push({
-                x: Math.floor(defaultWidth / 2 + Math.sin(i * 0.01) * 100),
-                y: Math.floor(i / 4)
+                x: Math.floor(defaultWidth / 2 + Math.sin(i * 0.02) * 80),
+                y: Math.floor(i / 3),
+                type: 'highway'
             });
         }
         
-        console.log('🎨 Alapértelmezett hosszú terep generálva');
+        console.log('🎨 Alapértelmezett terep generálva');
     }
     
-    // ⭐ AKTUÁLIS POZÍCIÓ LEKÉRÉSE A TÉRKÉPEN
+    // ⭐ AKTUÁLIS POZÍCIÓ LEKÉRÉSE
     getCurrentMapPosition(gamePosition, trackLength) {
         if (!this.routePoints.length) return { x: 0, y: 0 };
         
@@ -433,13 +582,27 @@ export class MapGenerator {
         return this.routePoints[pointIndex] || { x: 0, y: 0 };
     }
     
-    // ⭐ MINI TÉRKÉP ADATOK LEKÉRÉSE
+    // ⭐ MINI TÉRKÉP ADATOK
     getMiniMapData() {
         return {
             originalImage: this.originalImage,
             routePoints: this.routePoints,
             mapWidth: this.mapWidth,
-            mapHeight: this.mapHeight
+            mapHeight: this.mapHeight,
+            roadNetwork: this.roadNetwork
         };
+    }
+    
+    // ⭐ TEREP TÍPUS LEKÉRÉSE
+    getTerrainAt(x, y) {
+        if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) {
+            return 'grass';
+        }
+        
+        if (!this.terrainData[y] || !this.terrainData[y][x]) {
+            return 'grass';
+        }
+        
+        return this.terrainData[y][x].type;
     }
 }
