@@ -1,11 +1,13 @@
 import { CarPhysics } from '../physics/CarPhysics.js';
 import { TrackBuilder } from '../physics/TrackBuilder.js';
+import { MiniMap } from '../ui/Minimap.js';
 
 export class GameEngine {
     constructor() {
         this.carPhysics = new CarPhysics();
         this.trackBuilder = new TrackBuilder();
         this.assetLoader = null;
+        this.miniMap = new MiniMap(); // ⭐ MINI TÉRKÉP
         
         this.game = {
             playerX: 0,
@@ -28,16 +30,15 @@ export class GameEngine {
             roadWidth: 2000,
             segmentLength: 200,
             drawDistance: 400,
-            trackLength: 50000,
+            trackLength: 50000, // ⭐ DINAMIKUSAN FRISSÜL A TÉRKÉPBŐL
             road: [],
             cars: [],
             lastCarSpawn: 0,
             carSpawnDelay: 2000,
-            mapImageSrc: null // ⭐ TÉRKÉP KÉP ÚTVONAL
+            mapImageSrc: null
         };
     }
     
-    // ⭐ TÉRKÉP BEÁLLÍTÁSA
     setMapImage(mapImageSrc) {
         this.game.mapImageSrc = mapImageSrc;
         console.log(`🗺️ Térkép beállítva: ${mapImageSrc}`);
@@ -46,12 +47,19 @@ export class GameEngine {
     async buildTrack(assetLoader) {
         this.assetLoader = assetLoader;
         
-        // ⭐ TÉRKÉP ALAPÚ PÁLYA ÉPÍTÉS
         await this.trackBuilder.buildTrack(this.game, assetLoader, this.game.mapImageSrc);
+        
+        // ⭐ MINI TÉRKÉP INICIALIZÁLÁSA
+        if (this.trackBuilder.mapGenerator && this.trackBuilder.mapGenerator.getMiniMapData) {
+            const mapData = this.trackBuilder.mapGenerator.getMiniMapData();
+            if (mapData.originalImage) {
+                this.miniMap.init(mapData);
+                console.log('🗺️ Mini térkép inicializálva');
+            }
+        }
     }
     
-    
-  update(dt, gameState, inputManager, audioManager) {
+    update(dt, gameState, inputManager, audioManager) {
         if (gameState.current !== 'PLAYING') return;
         
         this.carPhysics.update(dt, this.game, inputManager);
@@ -59,6 +67,9 @@ export class GameEngine {
         this.updatePosition(dt);
         this.updateCars(dt);
         this.spawnNewCar();
+        
+        // ⭐ MINI TÉRKÉP FRISSÍTÉSE
+        this.miniMap.updatePlayerPosition(this.game.position, this.game.trackLength);
         
         if (audioManager && audioManager.updateEngineSound) {
             audioManager.updateEngineSound(this.game);
@@ -279,7 +290,7 @@ export class GameEngine {
         }
     }
     
-    restartRace() {
+restartRace() {
         this.game.position = 0;
         this.game.speed = 0;
         this.game.playerX = 0;
@@ -290,6 +301,10 @@ export class GameEngine {
         this.game.cars = [];
         this.game.currentGear = 1;
         this.game.actualRPM = 800;
+        
+        // ⭐ MINI TÉRKÉP RESET
+        this.miniMap.updatePlayerPosition(0, this.game.trackLength);
+        
         console.log('🔄 Race restarted!');
     }
 }
