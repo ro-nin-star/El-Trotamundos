@@ -9,6 +9,11 @@ export class AudioManager {
         };
         this.engineOscillators = null;
         this.engineGain = null;
+        this.isMobile = false;
+    }
+    
+    setMobile(isMobile) {
+        this.isMobile = isMobile;
     }
     
     init() {
@@ -26,16 +31,42 @@ export class AudioManager {
     createMuteButton() {
         const muteButton = document.createElement('button');
         muteButton.innerHTML = '🔊 SOUND ON';
-        muteButton.style.cssText = `
-            position: absolute; top: 10px; right: 10px; padding: 10px 15px;
-            background: #333; color: white; border: 2px solid #00FFFF;
-            border-radius: 5px; cursor: pointer; font-family: Arial;
-            font-size: 14px; z-index: 1000;
+        
+        // ⭐ MOBIL POZÍCIÓ JAVÍTÁS
+        const buttonStyle = this.isMobile ? `
+            position: fixed; 
+            top: 10px; 
+            left: 10px; 
+            padding: 8px 12px;
+            background: #333; 
+            color: white; 
+            border: 2px solid #00FFFF;
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-family: Arial;
+            font-size: 12px; 
+            z-index: 1000;
+            touch-action: manipulation;
+        ` : `
+            position: absolute; 
+            top: 10px; 
+            right: 10px; 
+            padding: 10px 15px;
+            background: #333; 
+            color: white; 
+            border: 2px solid #00FFFF;
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-family: Arial;
+            font-size: 14px; 
+            z-index: 1000;
         `;
+        
+        muteButton.style.cssText = buttonStyle;
         
         muteButton.addEventListener('click', () => {
             this.toggleMute();
-            muteButton.innerHTML = this.sounds.muted ? '🔇 SOUND OFF' : '🔊 SOUND ON';
+            muteButton.innerHTML = this.sounds.muted ? '🔇 OFF' : '🔊 ON';
             muteButton.style.borderColor = this.sounds.muted ? '#FF4444' : '#00FFFF';
         });
         
@@ -53,6 +84,13 @@ export class AudioManager {
         }
         
         console.log('🔊 Hang:', this.sounds.muted ? 'KIKAPCSOLVA' : 'BEKAPCSOLVA');
+    }
+    
+    // ⭐ AUTOMATIKUS MOTORHANG LEÁLLÍTÁS
+    stopAllSounds() {
+        this.stopEngineSound();
+        this.stopBackgroundMusic();
+        console.log('🔇 Minden hang leállítva');
     }
     
     startBackgroundMusic() {

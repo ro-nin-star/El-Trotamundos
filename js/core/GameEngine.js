@@ -9,7 +9,7 @@ export class GameEngine {
         this.game = {
             playerX: 0,
             speed: 0,
-            maxSpeed: 300, // ⭐ ALAPÉRTELMEZETT MAX SEBESSÉG
+            maxSpeed: 300,
             nitroMode: false,
             nitroAmount: 100,
             finished: false,
@@ -27,16 +27,16 @@ export class GameEngine {
             roadWidth: 2000,
             segmentLength: 200,
             drawDistance: 400,
-            trackLength: 0,
+            trackLength: 50000, // ⭐ HOSSZABB PÁLYA
             road: [],
             cars: [],
             lastCarSpawn: 0,
-            carSpawnDelay: 3000 // ⭐ GYORSABB AUTÓ SPAWN
+            carSpawnDelay: 2000 // ⭐ GYAKORIBB AUTÓ SPAWN
         };
     }
     
     buildTrack(assetLoader) {
-        this.trackBuilder.buildTrack(this.game, assetLoader); // ⭐ AssetLoader átadása
+        this.trackBuilder.buildTrack(this.game, assetLoader);
     }
     
     update(dt, gameState, inputManager, audioManager) {
@@ -48,16 +48,21 @@ export class GameEngine {
         this.updateCars(dt);
         this.spawnNewCar();
         
-        audioManager.updateEngineSound(this.game);
+        if (audioManager && audioManager.updateEngineSound) {
+            audioManager.updateEngineSound(this.game);
+        }
         
+        // ⭐ JAVÍTOTT CÉLBA ÉRÉS
         if (this.game.position >= this.game.trackLength - 1000) {
             this.handleFinish(audioManager);
         }
         
-        // ⭐ RESTART KEZELÉS
-        if (this.game.finished && inputManager.isPressed('KeyR')) {
+        // ⭐ MOBIL RESTART TÁMOGATÁS
+        if (this.game.finished && (inputManager.isPressed('KeyR') || inputManager.isPressed('Enter'))) {
             this.restartRace();
-            audioManager.startBackgroundMusic();
+            if (audioManager && audioManager.startBackgroundMusic) {
+                audioManager.startBackgroundMusic();
+            }
         }
     }
     
@@ -106,32 +111,37 @@ export class GameEngine {
         this.game.position += this.game.speed * dt * 50;
     }
     
+    // ⭐ JAVÍTOTT AUTÓ FRISSÍTÉS
     updateCars(dt) {
         this.game.cars.forEach((car, index) => {
-            const carForwardMovement = car.speed * dt * 3;
-            const playerEffect = this.game.speed * dt * 3;
+            // Autó saját mozgása
+            const carForwardMovement = car.speed * dt * 50;
+            // Játékos hatása (hátrafelé mozognak a játékoshoz képest)
+            const playerEffect = this.game.speed * dt * 50;
             
             car.z += carForwardMovement - playerEffect;
             
+            // Pálya követés javítva
             if (car.followsTrack) {
                 const carPosition = this.game.position + car.z;
                 const carSegment = this.findSegment(carPosition);
                 
                 if (carSegment && Math.abs(carSegment.curve) > 0) {
-                    const curveEffect = carSegment.curve * 0.0003;
-                    car.offset -= curveEffect;
-                    car.offset = Math.max(-0.8, Math.min(0.8, car.offset));
+                    const curveEffect = carSegment.curve * 0.0002; // Finomabb követés
+                    car.offset += curveEffect;
+                    car.offset = Math.max(-0.9, Math.min(0.9, car.offset));
                 }
             }
             
-            if (car.z > 3500 || car.z < -1500) {
+            // ⭐ NAGYOBB TÁVOLSÁG ELTÁVOLÍTÁSHOZ
+            if (car.z > 5000 || car.z < -2000) {
                 this.game.cars.splice(index, 1);
-                console.log('Autó eltávolítva, maradék:', this.game.cars.length);
                 return;
             }
         });
     }
     
+    // ⭐ JAVÍTOTT AUTÓ SPAWN
     spawnNewCar() {
         const now = Date.now();
         
@@ -139,15 +149,26 @@ export class GameEngine {
             return;
         }
         
-        if (this.game.cars.length >= 3) { // ⭐ TÖBB AUTÓ ENGEDÉLYEZÉSE
+        if (this.game.cars.length >= 5) { // Több autó
             return;
         }
         
+        // Változatos pozíciók
+        const spawnPositions = [
+            { z: 1500, offset: -0.6 }, // Bal sáv
+            { z: 2000, offset: 0.0 },  // Közép
+            { z: 1800, offset: 0.6 },  // Jobb sáv
+            { z: 2500, offset: -0.3 }, // Bal-közép
+            { z: 2200, offset: 0.3 }   // Jobb-közép
+        ];
+        
+        const randomPos = spawnPositions[Math.floor(Math.random() * spawnPositions.length)];
+        
         const newCar = {
-            z: 1200 + Math.random() * 800,
-            offset: (Math.random() - 0.5) * 0.8,
+            z: randomPos.z + Math.random() * 500,
+            offset: randomPos.offset + (Math.random() - 0.5) * 0.2,
             sprite: this.getRandomEnemySprite(),
-            speed: 60 + Math.random() * 30,
+            speed: 80 + Math.random() * 40, // Változatos sebesség
             width: 60,
             height: 30,
             followsTrack: true
@@ -156,17 +177,17 @@ export class GameEngine {
         this.game.cars.push(newCar);
         this.game.lastCarSpawn = now;
         
-        console.log(`Új autó spawned: ${this.game.cars.length} autó a pályán`);
+        // Következő spawn idő variálása
+        this.game.carSpawnDelay = 1500 + Math.random() * 2000;
     }
     
     getRandomEnemySprite() {
-        // Fallback sprite ha nincs betöltve
         const canvas = document.createElement('canvas');
         canvas.width = 40;
         canvas.height = 20;
         const ctx = canvas.getContext('2d');
         
-        const colors = ['#0000FF', '#00FF00', '#FF00FF', '#FFFF00'];
+        const colors = ['#0000FF', '#00FF00', '#FF00FF', '#FFFF00', '#FF8800', '#8800FF'];
         const color = colors[Math.floor(Math.random() * colors.length)];
         
         ctx.fillStyle = color;
@@ -187,16 +208,24 @@ export class GameEngine {
         if (segmentIndex >= 0 && segmentIndex < this.game.road.length) {
             return this.game.road[segmentIndex];
         }
-        return this.game.road[0];
+        return this.game.road.length > 0 ? this.game.road[0] : null;
     }
     
+    // ⭐ JAVÍTOTT CÉLBA ÉRÉS - AUTOMATIKUS HANGLEÁLLÍTÁS
     handleFinish(audioManager) {
         if (!this.game.finished) {
             this.game.finished = true;
             this.game.finishTime = Date.now() - this.game.raceStartTime;
-            audioManager.stopBackgroundMusic();
-            audioManager.playSound('finish');
-            console.log('🏁 FINISH!');
+            
+            // ⭐ MINDEN HANG LEÁLLÍTÁSA
+            if (audioManager) {
+                audioManager.stopAllSounds(); // Új metódus
+                if (audioManager.playSound) {
+                    setTimeout(() => audioManager.playSound('finish'), 500);
+                }
+            }
+            
+            console.log('🏁 FINISH! Hangok leállítva.');
         }
     }
     

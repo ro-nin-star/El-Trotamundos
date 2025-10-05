@@ -7,6 +7,7 @@ export class Renderer {
         this.ctx = null;
         this.screenManager = new ScreenManager();
         this.hud = new HUD();
+        this.isMobile = false;
     }
     
     setCanvas(canvas, ctx) {
@@ -14,6 +15,12 @@ export class Renderer {
         this.ctx = ctx;
         this.screenManager.setCanvas(canvas, ctx);
         this.hud.setCanvas(canvas, ctx);
+    }
+    
+    setMobile(isMobile) {
+        this.isMobile = isMobile;
+        this.screenManager.setMobile(isMobile);
+        this.hud.setMobile(isMobile);
     }
     
     render(gameState, gameEngine, assetLoader) {
@@ -61,6 +68,9 @@ export class Renderer {
     renderRoad(gameEngine) {
         const game = gameEngine.game;
         const baseSegment = this.findSegment(game.position, game);
+        
+        if (!baseSegment) return;
+        
         const basePercent = (game.position % game.segmentLength) / game.segmentLength;
         const playerY = 0;
         
@@ -103,13 +113,21 @@ export class Renderer {
         if (segmentIndex >= 0 && segmentIndex < game.road.length) {
             return game.road[segmentIndex];
         }
-        return game.road[0];
+        return game.road.length > 0 ? game.road[0] : null;
     }
     
     project(p, cameraX, cameraY, cameraZ) {
         p.camera.x = (p.world.x || 0) - cameraX;
         p.camera.y = (p.world.y || 0) - cameraY;
         p.camera.z = (p.world.z || 0) - cameraZ;
+        
+        if (p.camera.z <= 0) {
+            p.screen.scale = 0;
+            p.screen.x = 0;
+            p.screen.y = 0;
+            p.screen.w = 0;
+            return;
+        }
         
         p.screen.scale = 0.84 / p.camera.z;
         p.screen.x = Math.round((this.canvas.width / 2) + (p.screen.scale * p.camera.x * this.canvas.width / 2));
@@ -129,6 +147,23 @@ export class Renderer {
         // Fű
         this.ctx.fillStyle = segment.color === 'dark' ? '#228B22' : '#32CD32';
         this.ctx.fillRect(0, segment.p2.screen.y, this.canvas.width, segment.p1.screen.y - segment.p2.screen.y);
+        
+        // Út oldalsó csíkok
+        this.polygon(
+            segment.p1.screen.x - segment.p1.screen.w - r1, segment.p1.screen.y,
+            segment.p1.screen.x - segment.p1.screen.w, segment.p1.screen.y,
+            segment.p2.screen.x - segment.p2.screen.w, segment.p2.screen.y,
+            segment.p2.screen.x - segment.p2.screen.w - r2, segment.p2.screen.y,
+            segment.color === 'dark' ? '#FF0000' : '#FFFFFF'
+        );
+        
+        this.polygon(
+            segment.p1.screen.x + segment.p1.screen.w + r1, segment.p1.screen.y,
+            segment.p1.screen.x + segment.p1.screen.w, segment.p1.screen.y,
+            segment.p2.screen.x + segment.p2.screen.w, segment.p2.screen.y,
+            segment.p2.screen.x + segment.p2.screen.w + r2, segment.p2.screen.y,
+            segment.color === 'dark' ? '#FF0000' : '#FFFFFF'
+        );
         
         // Út
         this.polygon(
@@ -169,7 +204,7 @@ export class Renderer {
         if (distanceToFinish > 0 && distanceToFinish < 2000) {
             const finishSegment = this.findSegment(finishPosition, game);
             
-            if (finishSegment) {
+            if (finishSegment && finishSegment.p1 && finishSegment.p1.screen) {
                 this.ctx.fillStyle = '#000000';
                 this.ctx.fillRect(0, finishSegment.p1.screen.y - 10, this.canvas.width, 20);
                 
@@ -182,14 +217,14 @@ export class Renderer {
     }
     
     renderCars(game) {
-        // Autók renderelése (egyszerűsített)
         game.cars.forEach(car => {
-            if (car.z > -800 && car.z < 3000 && car.sprite) {
+            if (car.z > -1000 && car.z < 4000 && car.sprite) {
                 this.renderCarAtPosition(car, game);
             }
         });
     }
     
+    // ⭐ JAVÍTOTT AUTÓ MÉRETEZÉS
     renderCarAtPosition(car, game) {
         const carWorldZ = game.position + car.z;
         const carWorldX = car.offset * game.roadWidth;
@@ -205,24 +240,33 @@ export class Renderer {
         const screenX = (this.canvas.width / 2) + (scale * cameraX * this.canvas.width / 2);
         const screenY = (this.canvas.height / 2) - (scale * cameraY * this.canvas.height / 2);
         
-        const baseScale = 8.0;
-        const destW = car.sprite.width * scale * this.canvas.width * baseScale / 6;
-        const destH = car.sprite.height * scale * this.canvas.width * baseScale / 6;
+        // ⭐ JAVÍTOTT MÉRETEZÉS - TÁVOLSÁG ALAPÚ
+        const baseScale = 12.0; // Nagyobb alapméret
+        const distanceScale = Math.max(0.3, Math.min(3.0, scale * 15)); // Távolság alapú skálázás
         
-        const finalW = Math.max(40, Math.min(200, destW));
-        const finalH = Math.max(24, Math.min(120, destH));
+        const destW = car.sprite.width * distanceScale * baseScale;
+        const destH = car.sprite.height * distanceScale * baseScale;
+        
+        // ⭐ REALISZTIKUS MÉRETHATÁROK
+        const finalW = Math.max(15, Math.min(250, destW));
+        const finalH = Math.max(10, Math.min(150, destH));
         
         const destX = screenX - (finalW / 2);
         const destY = screenY - finalH;
         
+        // ⭐ TÁVOLSÁG ALAPÚ ÁTLÁTSZÓSÁG
+        const alpha = Math.max(0.4, Math.min(1.0, scale * 8));
+        this.ctx.save();
+        this.ctx.globalAlpha = alpha;
         this.ctx.drawImage(car.sprite, destX, destY, finalW, finalH);
+        this.ctx.restore();
     }
     
     renderPlayerCar(gameEngine, assetLoader) {
         const assets = assetLoader.getAssets();
         if (!assets.player) return;
         
-        const carScale = 2.5;
+        const carScale = this.isMobile ? 2.0 : 2.5;
         const carW = assets.player.width * carScale;
         const carH = assets.player.height * carScale;
         

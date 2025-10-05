@@ -132,7 +132,7 @@ export class ScreenManager {
             '⬇️ FÉK gomb - Fékezés',
             '⬅️➡️ Kormányzás',
             '🚀 NITRO gomb - Turbó',
-            '🔊 Hang be/ki'
+            '🔊 Hang be/ki (bal felső)'
         ] : [
             '↑ / W     - ACCELERATE',
             '↓ / S     - BRAKE',
@@ -170,6 +170,7 @@ export class ScreenManager {
         this.ctx.textAlign = 'left';
     }
     
+    // ⭐ JAVÍTOTT FINISH KÉPERNYŐ - MOBIL RESTART
     renderFinishLayer(gameEngine) {
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -206,10 +207,13 @@ export class ScreenManager {
         this.ctx.strokeText(`Avg Speed: ${avgSpeed} KM/H`, this.canvas.width / 2, boxY + (this.isMobile ? 120 : 180));
         this.ctx.fillText(`Avg Speed: ${avgSpeed} KM/H`, this.canvas.width / 2, boxY + (this.isMobile ? 120 : 180));
         
+        // ⭐ MOBIL ÉS DESKTOP RESTART INSTRUKCIÓ
         this.ctx.fillStyle = '#AAAAAA';
         this.ctx.font = this.isMobile ? '14px Arial' : '18px Arial';
-        this.ctx.strokeText('Press R to restart', this.canvas.width / 2, boxY + boxHeight - 40);
-        this.ctx.fillText('Press R to restart', this.canvas.width / 2, boxY + boxHeight - 40);
+        
+        const restartText = this.isMobile ? 'Tap any mobile button to restart' : 'Press R to restart';
+        this.ctx.strokeText(restartText, this.canvas.width / 2, boxY + boxHeight - 40);
+        this.ctx.fillText(restartText, this.canvas.width / 2, boxY + boxHeight - 40);
         
         this.ctx.textAlign = 'left';
     }
