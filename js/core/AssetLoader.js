@@ -9,11 +9,11 @@ export class AssetLoader {
         console.log('📦 Asset betöltés kezdése...');
         
         const assetList = [
-            { name: 'player', src: 'assets/images/player-car.png' },
-            { name: 'enemy1', src: 'assets/images/enemy-car-1.png' },
-            { name: 'enemy2', src: 'assets/images/enemy-car-2.png' },
-            { name: 'enemy3', src: 'assets/images/enemy-car-3.png' },
-            { name: 'steeringWheel', src: 'assets/images/steering-wheel.png' } // ⭐ KORMÁNY ASSET
+            { name: 'player', src: 'assets/player-car.png' },
+            { name: 'enemy1', src: 'assets/enemy-car1.png' },
+            { name: 'enemy2', src: 'assets/enemy-car2.png' },
+            { name: 'enemy3', src: 'assets/enemy-car3.png' },
+            { name: 'steeringWheel', src: 'assets/steering-wheel.png' } // ⭐ KORMÁNY ASSET
         ];
         
         const loadPromises = assetList.map(asset => this.loadImage(asset.name, asset.src));
