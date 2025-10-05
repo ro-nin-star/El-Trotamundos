@@ -21,15 +21,12 @@ export class HUD {
     render(gameEngine) {
         const game = gameEngine.game;
         
-        // ⭐ BAL FELSŐ SAROK SEBESSÉGSZÁMLÁLÓ ELTÁVOLÍTVA
-        // Csak a jobb oldali analog dashboard és egyéb információk maradnak
-        
         this.ctx.fillStyle = 'white';
         this.ctx.font = 'bold 18px Arial';
         this.ctx.strokeStyle = 'black';
         this.ctx.lineWidth = 3;
         
-        // ⭐ NITRO BAR (bal alsó sarok helyett jobb felső)
+        // ⭐ NITRO BAR (jobb felső)
         const nitroBarX = this.isMobile ? this.canvas.width - 220 : this.canvas.width - 250;
         const nitroBarY = 20;
         const barWidth = this.isMobile ? 150 : 200;
@@ -70,7 +67,6 @@ export class HUD {
             this.ctx.strokeText(nitroText, nitroX, 60);
             this.ctx.fillText(nitroText, nitroX, 60);
             
-            // Villogó effekt
             if (Math.floor(Date.now() / 100) % 2) {
                 this.ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
                 this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -90,14 +86,14 @@ export class HUD {
             this.dashboard.render(speedKmh, game.currentGear, game.actualRPM);
         }
         
-        // ⭐ MOBIL INSTRUKCIÓK (jobb alsó sarok)
+        // ⭐ FRISSÍTETT MOBIL INSTRUKCIÓK
         if (this.isMobile) {
-            const infoWidth = 240;
-            const infoHeight = 90;
+            const infoWidth = 260;
+            const infoHeight = 100;
             const infoX = this.canvas.width - infoWidth - 10;
-            const infoY = this.canvas.height - infoHeight - 10;
+            const infoY = this.canvas.height - infoHeight - 220; // Magasabbra a vezérlők miatt
             
-            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
             this.ctx.fillRect(infoX, infoY, infoWidth, infoHeight);
             
             this.ctx.strokeStyle = '#00FFFF';
@@ -105,11 +101,12 @@ export class HUD {
             this.ctx.strokeRect(infoX, infoY, infoWidth, infoHeight);
             
             this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.font = '12px Arial';
-            this.ctx.fillText('📱 Mobil vezérlők alul', infoX + 10, infoY + 20);
-            this.ctx.fillText('🚀 Piros gomb = Nitro', infoX + 10, infoY + 40);
-            this.ctx.fillText('⬆️ Kék gomb = Gáz', infoX + 10, infoY + 60);
-            this.ctx.fillText('⬅️➡️ Kormányzás', infoX + 10, infoY + 80);
+            this.ctx.font = '11px Arial';
+            this.ctx.fillText('🏎️ BAL oldal: Kormány (húzd)', infoX + 8, infoY + 18);
+            this.ctx.fillText('⬆️ JOBB felső: Gáz', infoX + 8, infoY + 35);
+            this.ctx.fillText('⬇️ JOBB alsó: Fék', infoX + 8, infoY + 52);
+            this.ctx.fillText('🚀 KÖZÉP: Nitro boost', infoX + 8, infoY + 69);
+            this.ctx.fillText('🎯 Egyszerű és intuitív!', infoX + 8, infoY + 86);
         }
     }
 }
