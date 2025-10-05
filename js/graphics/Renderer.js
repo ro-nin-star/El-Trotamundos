@@ -1,6 +1,5 @@
 import { ScreenManager } from './ScreenManager.js';
 import { HUD } from '../ui/HUD.js';
-import { SignRenderer } from './SignRenderer.js';
 
 export class Renderer {
     constructor() {
@@ -8,7 +7,6 @@ export class Renderer {
         this.ctx = null;
         this.screenManager = new ScreenManager();
         this.hud = new HUD();
-        this.signRenderer = new SignRenderer();
         this.isMobile = false;
     }
     
@@ -47,7 +45,6 @@ export class Renderer {
         
         this.renderSky();
         this.renderRoad(gameEngine);
-        this.renderSigns(gameEngine); // ⭐ TÁBLÁK RENDERELÉSE
         this.renderPlayerCar(gameEngine, assetLoader);
         
         this.ctx.restore();
@@ -109,92 +106,6 @@ export class Renderer {
         
         this.renderFinishLine(game);
         this.renderCars(game);
-    }
-    
-    // ⭐ TÁBLÁK RENDERELÉSE
-    renderSigns(gameEngine) {
-        const game = gameEngine.game;
-        
-        if (!game.signs) return;
-        
-        game.signs.forEach(sign => {
-            const signWorldZ = sign.z;
-            const distanceToSign = signWorldZ - game.position;
-            
-            // ⭐ LÁTHATÓSÁG ELLENŐRZÉS
-            if (distanceToSign > -1000 && distanceToSign < 4000) {
-                this.renderSignAtPosition(sign, game, distanceToSign);
-            }
-        });
-    }
-    
-    // ⭐ EGYEDI TÁBLA RENDERELÉSE
-    renderSignAtPosition(sign, game, distanceToSign) {
-        // ⭐ SPRITE GENERÁLÁSA HA SZÜKSÉGES
-        if (!sign.sprite) {
-            switch (sign.type) {
-                case 'curve':
-                    sign.sprite = this.signRenderer.createCurveSign(sign.direction, sign.distance);
-                    break;
-                case 'speed':
-                    sign.sprite = this.signRenderer.createSpeedSign(sign.speedLimit);
-                    break;
-                case 'city':
-                    sign.sprite = this.signRenderer.createCitySign(sign.cityName);
-                    break;
-            }
-        }
-        
-        if (!sign.sprite) return;
-        
-        // ⭐ POZÍCIÓ SZÁMÍTÁSA
-        const signWorldX = sign.offset * game.roadWidth;
-        const signWorldY = -50; // Magasság
-        const signWorldZ = sign.z;
-        
-        const cameraX = signWorldX - (game.playerX * game.roadWidth);
-        const cameraY = signWorldY - game.cameraY;
-        const cameraZ = signWorldZ - game.position;
-        
-        if (cameraZ <= 0.1) return;
-        
-        // ⭐ KÉPERNYŐ KOORDINÁTÁK
-        const scale = 0.84 / cameraZ;
-        const screenX = (this.canvas.width / 2) + (scale * cameraX * this.canvas.width / 2);
-        const screenY = (this.canvas.height / 2) - (scale * cameraY * this.canvas.height / 2);
-        
-        // ⭐ MÉRETEZÉS
-        const signScale = Math.max(0.3, Math.min(2.0, scale * 15));
-        const finalW = sign.sprite.width * signScale;
-        const finalH = sign.sprite.height * signScale;
-        
-        const destX = screenX - (finalW / 2);
-        const destY = screenY - finalH;
-        
-        // ⭐ TÁVOLSÁG ALAPÚ ÁTLÁTSZÓSÁG
-        let alpha = 1.0;
-        if (distanceToSign > 2000) {
-            alpha = Math.max(0.3, 1.0 - ((distanceToSign - 2000) / 2000));
-        }
-        
-        // ⭐ RENDERELÉS
-        this.ctx.save();
-        this.ctx.globalAlpha = alpha;
-        this.ctx.imageSmoothingEnabled = false;
-        
-        try {
-            this.ctx.drawImage(sign.sprite, destX, destY, finalW, finalH);
-            
-            // ⭐ ÁRNYÉK EFFEKT
-            this.ctx.globalAlpha = alpha * 0.3;
-            this.ctx.fillStyle = '#000000';
-            this.ctx.fillRect(destX + 5, destY + finalH - 5, finalW * 0.8, 10);
-            
-        } catch (error) {
-            console.warn('⚠️ Tábla renderelési hiba:', error);
-        }
-        
-        this.ctx.restore();
     }
     
     findSegment(z, game) {
@@ -305,43 +216,55 @@ export class Renderer {
         }
     }
     
+    // ⭐ JAVÍTOTT AUTÓ RENDERELÉS - NAGYOBB LÁTÓTÁVOLSÁG
     renderCars(game) {
         game.cars.forEach(car => {
+            // ⭐ MEGNÖVELT LÁTÓTÁVOLSÁG: -2000 -> -3000 és 4000 -> 8000
             if (car.z > -3000 && car.z < 8000 && car.sprite && car.sprite instanceof HTMLImageElement) {
                 this.renderCarAtPosition(car, game);
             }
         });
     }
     
+    // ⭐ TELJESEN ÚJRAÍRT AUTÓ MÉRETEZÉS - REALISZTIKUS PERSPEKTÍVA
     renderCarAtPosition(car, game) {
+        // ⭐ VILÁGKOORDINÁTÁK SZÁMÍTÁSA
         const carWorldZ = game.position + car.z;
         const carWorldX = car.offset * game.roadWidth;
         const carWorldY = 0;
         
+        // ⭐ KAMERA KOORDINÁTÁK
         const cameraX = carWorldX - (game.playerX * game.roadWidth);
         const cameraY = carWorldY - game.cameraY;
         const cameraZ = carWorldZ - game.position;
         
-        if (cameraZ <= 0.05) return;
+        // ⭐ LÁTHATÓSÁG ELLENŐRZÉS
+        if (cameraZ <= 0.05) return; // Csökkentett minimum távolság
         
+        // ⭐ KÉPERNYŐ KOORDINÁTÁK
         const scale = 0.84 / cameraZ;
         const screenX = (this.canvas.width / 2) + (scale * cameraX * this.canvas.width / 2);
         const screenY = (this.canvas.height / 2) - (scale * cameraY * this.canvas.height / 2);
         
+        // ⭐ SPRITE MÉRET ELLENŐRZÉS
         const spriteWidth = car.sprite.width || 40;
         const spriteHeight = car.sprite.height || 20;
         
+        // ⭐ JAVÍTOTT MÉRETEZÉSI ALGORITMUS
         let finalW, finalH;
         
         if (car.z > 0) {
-            const frontScale = Math.max(0.8, Math.min(6.0, scale * 35));
+            // ⭐ ELŐTTÜNK LÉVŐ AUTÓK - NAGYOBB MÉRETEZÉS
+            const frontScale = Math.max(0.8, Math.min(6.0, scale * 35)); // Nagyobb szorzó
             finalW = spriteWidth * frontScale;
             finalH = spriteHeight * frontScale;
             
+            // ⭐ MINIMUM MÉRET ELŐTTÜNK LÉVŐ AUTÓKHOZ
             finalW = Math.max(40, Math.min(400, finalW));
             finalH = Math.max(25, Math.min(250, finalH));
             
         } else {
+            // ⭐ MÖGÖTTÜNK LÉVŐ AUTÓK - NORMÁL MÉRETEZÉS
             const backScale = Math.max(0.3, Math.min(4.0, scale * 25));
             finalW = spriteWidth * backScale;
             finalH = spriteHeight * backScale;
@@ -350,25 +273,38 @@ export class Renderer {
             finalH = Math.max(10, Math.min(180, finalH));
         }
         
+        // ⭐ POZÍCIÓ SZÁMÍTÁSA
         const destX = screenX - (finalW / 2);
         const destY = screenY - finalH;
         
+        // ⭐ TÁVOLSÁG ALAPÚ ÁTLÁTSZÓSÁG
         let alpha = 1.0;
         if (car.z > 4000) {
+            // Távoli autók halványítása
             alpha = Math.max(0.3, 1.0 - ((car.z - 4000) / 4000));
         }
         
+        // ⭐ KÉPERNYŐN KÍVÜLI AUTÓK KISZŰRÉSE
         if (destX + finalW < 0 || destX > this.canvas.width || 
             destY + finalH < 0 || destY > this.canvas.height) {
             return;
         }
         
+        // ⭐ RENDERELÉS
         this.ctx.save();
         this.ctx.globalAlpha = alpha;
         this.ctx.imageSmoothingEnabled = false;
         
         try {
             this.ctx.drawImage(car.sprite, destX, destY, finalW, finalH);
+            
+            // ⭐ DEBUG INFO (opcionális - törölhető)
+            if (false) { // true-ra állítva megjeleníti a debug infót
+                this.ctx.fillStyle = 'white';
+                this.ctx.font = '10px Arial';
+                this.ctx.fillText(`Z:${Math.round(car.z)}`, destX, destY - 5);
+            }
+            
         } catch (error) {
             console.warn('⚠️ Autó renderelési hiba:', error);
         }
