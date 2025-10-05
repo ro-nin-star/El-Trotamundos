@@ -225,40 +225,49 @@ export class Renderer {
         });
     }
     
-    // ⭐ JAVÍTOTT AUTÓ RENDERELÉS - SZELLEMKÉP JAVÍTÁS
+    // ⭐ JAVÍTOTT AUTÓ RENDERELÉS - VÁLTOZÓ DEKLARÁLÁSI HIBA JAVÍTVA
     renderCarAtPosition(car, game) {
+        // ⭐ VILÁGKOORDINÁTÁK SZÁMÍTÁSA
         const carWorldZ = game.position + car.z;
         const carWorldX = car.offset * game.roadWidth;
         const carWorldY = 0;
         
+        // ⭐ KAMERA KOORDINÁTÁK
         const cameraX = carWorldX - (game.playerX * game.roadWidth);
         const cameraY = carWorldY - game.cameraY;
         const cameraZ = carWorldZ - game.position;
         
+        // ⭐ LÁTHATÓSÁG ELLENŐRZÉS
         if (cameraZ <= 0.1) return;
         
+        // ⭐ KÉPERNYŐ KOORDINÁTÁK
         const scale = 0.84 / cameraZ;
         const screenX = (this.canvas.width / 2) + (scale * cameraX * this.canvas.width / 2);
         const screenY = (this.canvas.height / 2) - (scale * cameraY * this.canvas.height / 2);
         
-        // ⭐ REALISZTIKUS MÉRETEZÉS
+        // ⭐ MÉRETEZÉS SZÁMÍTÁSA - HELYES SORREND
         const baseScale = 15.0;
         const distanceScale = Math.max(0.4, Math.min(4.0, scale * 20));
         
-        const destW = car.sprite.width * distanceScale * baseScale / 10;
-        const destH = car.sprite.height * distanceScale * baseScale / 10;
+        // ⭐ SPRITE MÉRET ELLENŐRZÉS
+        const spriteWidth = car.sprite.width || 40;
+        const spriteHeight = car.sprite.height || 20;
         
+        // ⭐ CÉLMÉRET SZÁMÍTÁSA
+        const destW = spriteWidth * distanceScale * baseScale / 10;
+        const destH = spriteHeight * distanceScale * baseScale / 10;
+        
+        // ⭐ VÉGSŐ MÉRET KORLÁTOZÁSA
         const finalW = Math.max(20, Math.min(300, destW));
-        const finalH = Math.max(15, Math.min(180, finalH));
+        const finalH = Math.max(15, Math.min(180, destH));
         
+        // ⭐ POZÍCIÓ SZÁMÍTÁSA
         const destX = screenX - (finalW / 2);
         const destY = screenY - finalH;
         
-        // ⭐ TELJES ÁTLÁTSZATLANSÁG - SZELLEMKÉP JAVÍTÁS
+        // ⭐ RENDERELÉS
         this.ctx.save();
-        this.ctx.globalAlpha = 1.0; // ⭐ TELJES ÁTLÁTSZATLANSÁG
-        
-        // ⭐ KÉPMINŐSÉG JAVÍTÁS
+        this.ctx.globalAlpha = 1.0;
         this.ctx.imageSmoothingEnabled = false;
         
         try {
@@ -282,7 +291,7 @@ export class Renderer {
         const carY = this.canvas.height - carH - 20;
         
         this.ctx.save();
-        this.ctx.globalAlpha = 1.0; // ⭐ JÁTÉKOS AUTÓ IS TELJES ÁTLÁTSZATLANSÁG
+        this.ctx.globalAlpha = 1.0;
         this.ctx.imageSmoothingEnabled = false;
         this.ctx.translate(carX + carW / 2, carY + carH / 2);
         this.ctx.rotate(gameEngine.game.playerX * 0.1);
