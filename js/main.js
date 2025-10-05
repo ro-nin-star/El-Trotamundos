@@ -18,7 +18,6 @@ class Game {
         this.lastTime = 0;
         this.isMobile = window.innerWidth <= 768;
         
-        // ⭐ MOBIL VEZÉRLÉS ÁLLAPOTOK
         this.mobileControls = {
             steering: 0,
             gas: false,
@@ -32,73 +31,66 @@ class Game {
     async init() {
         console.log('🎮 Játék inicializálás...');
         
-        // ⭐ VÁRUNK A DOM BETÖLTÉSÉRE
-        await this.waitForDOM();
-        
-        this.setupCanvas();
-        await this.assetLoader.loadAssets();
-        
-        if (this.isMobile) {
-            this.createMobileControls();
+        try {
+            // ⭐ CANVAS BEÁLLÍTÁSA ELŐSZÖR
+            await this.ensureCanvas();
+            
+            // ⭐ ASSET BETÖLTÉS
+            await this.assetLoader.loadAssets();
+            
+            // ⭐ MOBIL VEZÉRLÉS
+            if (this.isMobile) {
+                this.createMobileControls();
+            }
+            
+            // ⭐ ESEMÉNYEK
+            this.setupEventListeners();
+            
+            // ⭐ TÉRKÉP ÉS PÁLYA
+            this.gameEngine.setMapImage('https://static.valasztas.hu/parval2002/onkweb/tart/inf/terkep2/borsod.jpg');
+            await this.gameEngine.buildTrack(this.assetLoader);
+            
+            // ⭐ JÁTÉK KÉSZ
+            this.gameState.current = 'READY';
+            this.hideLoading();
+            this.gameLoop(0);
+            
+            console.log('✅ Játék inicializálva!');
+            
+        } catch (error) {
+            console.error('❌ Játék inicializálási hiba:', error);
+            this.showError('Játék betöltési hiba!');
         }
-        
-        this.setupEventListeners();
-        this.gameEngine.setMapImage('https://static.valasztas.hu/parval2002/onkweb/tart/inf/terkep2/borsod.jpg');
-        
-        await this.gameEngine.buildTrack(this.assetLoader);
-        
-        this.gameState.current = 'READY';
-        this.hideLoading();
-        this.gameLoop(0);
-        
-        console.log('✅ Játék inicializálva!');
     }
     
-    // ⭐ DOM BETÖLTÉSÉRE VÁRÁS
-    waitForDOM() {
+    // ⭐ CANVAS BIZTOSÍTÁSA
+    async ensureCanvas() {
         return new Promise((resolve) => {
+            const tryFindCanvas = () => {
+                this.canvas = document.getElementById('gameCanvas');
+                
+                if (this.canvas) {
+                    console.log('✅ Canvas elem megtalálva');
+                    this.setupCanvas();
+                    resolve();
+                } else {
+                    console.warn('⚠️ Canvas elem nem található, létrehozás...');
+                    this.createCanvas();
+                    this.setupCanvas();
+                    resolve();
+                }
+            };
+            
+            // ⭐ AZONNALI PRÓBA
             if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', resolve);
+                document.addEventListener('DOMContentLoaded', tryFindCanvas);
             } else {
-                resolve();
+                tryFindCanvas();
             }
         });
     }
     
-    // ⭐ BETÖLTÉS KÉPERNYŐ ELREJTÉSE
-    hideLoading() {
-        const loadingElement = document.getElementById('loading');
-        if (loadingElement) {
-            loadingElement.style.display = 'none';
-        }
-    }
-    
-    setupCanvas() {
-        // ⭐ CANVAS ELEM KERESÉSE
-        this.canvas = document.getElementById('gameCanvas');
-        
-        if (!this.canvas) {
-            console.error('❌ gameCanvas elem nem található!');
-            // ⭐ CANVAS LÉTREHOZÁSA, HA NINCS
-            this.createCanvas();
-        }
-        
-        this.ctx = this.canvas.getContext('2d');
-        
-        const resizeCanvas = () => {
-            this.canvas.width = window.innerWidth;
-            this.canvas.height = window.innerHeight;
-            this.renderer.setCanvas(this.canvas, this.ctx);
-            console.log(`📐 Canvas méret: ${this.canvas.width}x${this.canvas.height}`);
-        };
-        
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-        
-        console.log('✅ Canvas beállítva');
-    }
-    
-    // ⭐ CANVAS LÉTREHOZÁSA, HA NINCS
+    // ⭐ CANVAS LÉTREHOZÁSA
     createCanvas() {
         console.log('🎨 Canvas létrehozása...');
         
@@ -113,11 +105,57 @@ class Game {
             z-index: 1;
         `;
         
-        document.body.appendChild(this.canvas);
-        console.log('✅ Canvas létrehozva');
+        // ⭐ BODY ELEJÉRE BESZÚRÁS
+        document.body.insertBefore(this.canvas, document.body.firstChild);
+        console.log('✅ Canvas létrehozva és beszúrva');
     }
     
-    // ⭐ MOBIL VEZÉRLÉS LÉTREHOZÁSA
+    setupCanvas() {
+        if (!this.canvas) {
+            throw new Error('Canvas elem nem elérhető!');
+        }
+        
+        this.ctx = this.canvas.getContext('2d');
+        
+        if (!this.ctx) {
+            throw new Error('Canvas context nem elérhető!');
+        }
+        
+        const resizeCanvas = () => {
+            this.canvas.width = window.innerWidth;
+            this.canvas.height = window.innerHeight;
+            this.renderer.setCanvas(this.canvas, this.ctx);
+            console.log(`📐 Canvas méret: ${this.canvas.width}x${this.canvas.height}`);
+        };
+        
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        console.log('✅ Canvas beállítva');
+    }
+    
+    // ⭐ HIBA MEGJELENÍTÉSE
+    showError(message) {
+        const loadingElement = document.getElementById('loading');
+        if (loadingElement) {
+            loadingElement.innerHTML = `
+                <div style="color: #ff4444;">
+                    ❌ ${message}<br>
+                    <small>Frissítsd az oldalt (F5)</small>
+                </div>
+            `;
+        }
+    }
+    
+    // ⭐ BETÖLTÉS ELREJTÉSE
+    hideLoading() {
+        const loadingElement = document.getElementById('loading');
+        if (loadingElement) {
+            loadingElement.style.display = 'none';
+        }
+    }
+    
+    // ⭐ MOBIL VEZÉRLÉS
     createMobileControls() {
         console.log('📱 Mobil vezérlés létrehozása...');
         
@@ -145,7 +183,8 @@ class Game {
             width: 100%;
             height: 100%;
             border-radius: 50%;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            border: 2px solid #333;
         `;
         
         const steeringCtx = steeringWheel.getContext('2d');
@@ -181,6 +220,7 @@ class Game {
             touch-action: none;
             user-select: none;
             transition: all 0.1s;
+            cursor: pointer;
         `;
         
         // ⭐ FÉK GOMB
@@ -198,6 +238,7 @@ class Game {
             touch-action: none;
             user-select: none;
             transition: all 0.1s;
+            cursor: pointer;
         `;
         
         buttonContainer.appendChild(gasButton);
@@ -227,12 +268,12 @@ class Game {
         ctx.fillStyle = '#2a2a2a';
         ctx.fill();
         ctx.strokeStyle = '#555';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2;
         ctx.stroke();
         
         // ⭐ BELSŐ GYŰRŰ
         ctx.beginPath();
-        ctx.arc(centerX, centerY, radius - 10, 0, Math.PI * 2);
+        ctx.arc(centerX, centerY, radius - 8, 0, Math.PI * 2);
         ctx.fillStyle = '#1a1a1a';
         ctx.fill();
         
@@ -242,27 +283,27 @@ class Game {
         ctx.rotate(angle);
         
         ctx.strokeStyle = '#666';
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 3;
         ctx.lineCap = 'round';
         
         for (let i = 0; i < 4; i++) {
             const spokeAngle = (i * Math.PI) / 2;
             ctx.beginPath();
-            ctx.moveTo(Math.cos(spokeAngle) * 15, Math.sin(spokeAngle) * 15);
-            ctx.lineTo(Math.cos(spokeAngle) * 35, Math.sin(spokeAngle) * 35);
+            ctx.moveTo(Math.cos(spokeAngle) * 12, Math.sin(spokeAngle) * 12);
+            ctx.lineTo(Math.cos(spokeAngle) * 32, Math.sin(spokeAngle) * 32);
             ctx.stroke();
         }
         
         // ⭐ KÖZPONT
         ctx.beginPath();
-        ctx.arc(0, 0, 12, 0, Math.PI * 2);
+        ctx.arc(0, 0, 10, 0, Math.PI * 2);
         ctx.fillStyle = '#444';
         ctx.fill();
         
         // ⭐ FELSŐ JELZŐ
         ctx.fillStyle = '#ffff00';
         ctx.beginPath();
-        ctx.arc(0, -30, 3, 0, Math.PI * 2);
+        ctx.arc(0, -28, 2, 0, Math.PI * 2);
         ctx.fill();
         
         ctx.restore();
@@ -310,15 +351,22 @@ class Game {
             event.preventDefault();
             this.mobileControls.isDragging = false;
             
-            this.mobileControls.steering *= 0.9;
-            this.mobileControls.currentAngle *= 0.9;
-            this.drawSteering(ctx, this.mobileControls.currentAngle);
+            // ⭐ VISSZAÁLLÁS KÖZÉPRE
+            const resetSteering = () => {
+                this.mobileControls.steering *= 0.8;
+                this.mobileControls.currentAngle *= 0.8;
+                this.drawSteering(ctx, this.mobileControls.currentAngle);
+                
+                if (Math.abs(this.mobileControls.steering) > 0.05) {
+                    requestAnimationFrame(resetSteering);
+                } else {
+                    this.mobileControls.steering = 0;
+                    this.mobileControls.currentAngle = 0;
+                    this.drawSteering(ctx, 0);
+                }
+            };
             
-            if (Math.abs(this.mobileControls.steering) < 0.1) {
-                this.mobileControls.steering = 0;
-                this.mobileControls.currentAngle = 0;
-                this.drawSteering(ctx, 0);
-            }
+            resetSteering();
         };
         
         wheel.addEventListener('touchstart', startHandler);
@@ -331,13 +379,16 @@ class Game {
     
     // ⭐ GOMB ESEMÉNYEK
     setupButtonEvents(gasButton, brakeButton) {
-        const gasStart = () => {
+        // ⭐ GÁZ GOMB
+        const gasStart = (event) => {
+            event.preventDefault();
             this.mobileControls.gas = true;
             gasButton.style.background = 'rgba(0,255,0,0.6)';
             gasButton.style.transform = 'scale(0.95)';
         };
         
-        const gasEnd = () => {
+        const gasEnd = (event) => {
+            event.preventDefault();
             this.mobileControls.gas = false;
             gasButton.style.background = 'rgba(0,255,0,0.2)';
             gasButton.style.transform = 'scale(1)';
@@ -348,13 +399,16 @@ class Game {
         gasButton.addEventListener('mousedown', gasStart);
         gasButton.addEventListener('mouseup', gasEnd);
         
-        const brakeStart = () => {
+        // ⭐ FÉK GOMB
+        const brakeStart = (event) => {
+            event.preventDefault();
             this.mobileControls.brake = true;
             brakeButton.style.background = 'rgba(255,0,0,0.6)';
             brakeButton.style.transform = 'scale(0.95)';
         };
         
-        const brakeEnd = () => {
+        const brakeEnd = (event) => {
+            event.preventDefault();
             this.mobileControls.brake = false;
             brakeButton.style.background = 'rgba(255,0,0,0.2)';
             brakeButton.style.transform = 'scale(1)';
@@ -366,7 +420,7 @@ class Game {
         brakeButton.addEventListener('mouseup', brakeEnd);
     }
     
-    // ⭐ MOBIL VEZÉRLÉS MEGJELENÍTÉSE/ELREJTÉSE
+    // ⭐ MOBIL VEZÉRLÉS TOGGLE
     toggleMobileControls(show) {
         if (!this.isMobile) return;
         
@@ -384,6 +438,7 @@ class Game {
             this.inputManager.handleKeyDown(event);
             
             if (event.code === 'Space' && this.gameState.current === 'READY') {
+                event.preventDefault();
                 this.startGame();
             }
         });
@@ -392,10 +447,20 @@ class Game {
             this.inputManager.handleKeyUp(event);
         });
         
-        if (this.isMobile) {
+        // ⭐ MOBIL TOUCH START
+        if (this.isMobile && this.canvas) {
             this.canvas.addEventListener('touchstart', (event) => {
                 if (this.gameState.current === 'READY') {
                     event.preventDefault();
+                    this.startGame();
+                }
+            });
+        }
+        
+        // ⭐ CLICK START (DESKTOP)
+        if (this.canvas) {
+            this.canvas.addEventListener('click', (event) => {
+                if (this.gameState.current === 'READY') {
                     this.startGame();
                 }
             });
@@ -425,7 +490,9 @@ class Game {
     }
     
     render() {
-        this.renderer.render(this.gameEngine.game, this.gameState, this.assetLoader.getAssets());
+        if (this.ctx && this.canvas) {
+            this.renderer.render(this.gameEngine.game, this.gameState, this.assetLoader.getAssets());
+        }
     }
     
     gameLoop(currentTime) {
@@ -439,13 +506,10 @@ class Game {
     }
 }
 
-// ⭐ JÁTÉK INDÍTÁSA DOM BETÖLTÉS UTÁN
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        const game = new Game();
-        game.init().catch(console.error);
-    });
-} else {
-    const game = new Game();
-    game.init().catch(console.error);
-}
+// ⭐ JÁTÉK INDÍTÁSA
+const game = new Game();
+game.init().catch(error => {
+    console.error('❌ Játék indítási hiba:', error);
+});
+
+export { Game };
