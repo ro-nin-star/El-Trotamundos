@@ -104,189 +104,149 @@ class OutRunRacing {
         this.renderer.setMobile(this.isMobile);
     }
     
-    // ⭐ KORMÁNYOS VEZÉRLÉS LÉTREHOZÁSA
-    createSteeringControls() {
-        const controlsContainer = document.createElement('div');
-        controlsContainer.style.cssText = `
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 250px;
-            z-index: 1000;
-            pointer-events: none;
-        `;
-        
-        // ⭐ KORMÁNYKERÉK KONTÉNER
-        const steeringContainer = document.createElement('div');
-        steeringContainer.style.cssText = `
-            position: absolute;
-            left: 20px;
-            bottom: 20px;
-            width: 150px;
-            height: 150px;
-            pointer-events: auto;
-        `;
-        
-        // ⭐ KORMÁNYKERÉK ELEM
-        const steeringWheel = document.createElement('div');
-        steeringWheel.style.cssText = `
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
-            border: 3px solid #444;
-            position: relative;
-            cursor: grab;
-            box-shadow: 
-                inset 0 0 20px rgba(0,0,0,0.5),
-                0 5px 15px rgba(0,0,0,0.3);
-            transition: transform 0.1s ease-out;
-        `;
-        
-        // ⭐ KORMÁNY KÜLLŐK
-        const spokes = document.createElement('div');
-        spokes.innerHTML = `
-            <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 60px; background: #666; transform: translate(-50%, -50%) rotate(0deg);"></div>
-            <div style="position: absolute; top: 50%; left: 50%; width: 60px; height: 2px; background: #666; transform: translate(-50%, -50%) rotate(0deg);"></div>
-            <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 60px; background: #666; transform: translate(-50%, -50%) rotate(90deg);"></div>
-            <div style="position: absolute; top: 50%; left: 50%; width: 60px; height: 2px; background: #666; transform: translate(-50%, -50%) rotate(90deg);"></div>
-        `;
-        steeringWheel.appendChild(spokes);
-        
-        // ⭐ KÖZPONTI RÉSZ
-        const center = document.createElement('div');
-        center.innerHTML = '🏎️';
-        center.style.cssText = `
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 40px;
-            height: 40px;
-            background: #333;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            border: 2px solid #555;
-        `;
-        steeringWheel.appendChild(center);
-        
-        // ⭐ CÍMKE
-        const steeringLabel = document.createElement('div');
-        steeringLabel.textContent = 'KORMÁNY';
-        steeringLabel.style.cssText = `
-            position: absolute;
-            bottom: -25px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: white;
-            font-size: 12px;
-            font-family: Arial;
-            text-align: center;
-        `;
-        
-        steeringContainer.appendChild(steeringWheel);
-        steeringContainer.appendChild(steeringLabel);
-        
-        // ⭐ GÁZ GOMB
-        const gasButton = document.createElement('div');
-        gasButton.innerHTML = `
-            <div style="font-size: 24px;">⬆️</div>
-            <div style="font-size: 12px;">GÁZ</div>
-        `;
-        gasButton.style.cssText = `
-            position: absolute;
-            right: 20px;
-            bottom: 120px;
-            width: 80px;
-            height: 60px;
-            background: linear-gradient(145deg, #00AA00, #008800);
-            border: 2px solid #00FF00;
-            border-radius: 15px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-family: Arial;
-            pointer-events: auto;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-            cursor: pointer;
-        `;
-        
-        // ⭐ FÉK GOMB
-        const brakeButton = document.createElement('div');
-        brakeButton.innerHTML = `
-            <div style="font-size: 24px;">⬇️</div>
-            <div style="font-size: 12px;">FÉK</div>
-        `;
-        brakeButton.style.cssText = `
-            position: absolute;
-            right: 20px;
-            bottom: 50px;
-            width: 80px;
-            height: 60px;
-            background: linear-gradient(145deg, #AA0000, #880000);
-            border: 2px solid #FF0000;
-            border-radius: 15px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-family: Arial;
-            pointer-events: auto;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-            cursor: pointer;
-        `;
-        
-        // ⭐ NITRO GOMB
-        const nitroButton = document.createElement('div');
-        nitroButton.innerHTML = `
-            <div style="font-size: 20px;">🚀</div>
-            <div style="font-size: 10px;">NITRO</div>
-        `;
-        nitroButton.style.cssText = `
-            position: absolute;
-            right: 120px;
-            bottom: 85px;
-            width: 70px;
-            height: 50px;
-            background: linear-gradient(145deg, #FF4444, #FF6666);
-            border: 2px solid #FFFF00;
-            border-radius: 25px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-family: Arial;
-            pointer-events: auto;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-            cursor: pointer;
-        `;
-        
-        // ⭐ REFERENCIÁK MENTÉSE
-        this.mobileControls.steeringWheel = steeringWheel;
-        this.mobileControls.gasButton = gasButton;
-        this.mobileControls.brakeButton = brakeButton;
-        this.mobileControls.nitroButton = nitroButton;
-        
-        // ⭐ ÖSSZEÁLLÍTÁS
-        controlsContainer.appendChild(steeringContainer);
-        controlsContainer.appendChild(gasButton);
-        controlsContainer.appendChild(brakeButton);
-        controlsContainer.appendChild(nitroButton);
-        
-        document.body.appendChild(controlsContainer);
-        
-        // ⭐ EVENT LISTENER-EK BEÁLLÍTÁSA
-        this.setupSteeringWheelEvents();
-        this.setupButtonEvents();
+   createSteeringControls() {
+    if (!this.isMobile) return;
+    
+    console.log('📱 Mobil kormány vezérlés létrehozása...');
+    
+    // ⭐ KORMÁNY ASSET LEKÉRÉSE
+    const steeringWheelAsset = this.assetLoader.getSteeringWheelAsset();
+    
+    const steeringContainer = document.createElement('div');
+    steeringContainer.id = 'steering-container';
+    steeringContainer.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        width: 120px;
+        height: 120px;
+        z-index: 1000;
+        touch-action: none;
+        user-select: none;
+    `;
+    
+    const steeringWheel = document.createElement('canvas');
+    steeringWheel.id = 'steering-wheel';
+    steeringWheel.width = 120;
+    steeringWheel.height = 120;
+    steeringWheel.style.cssText = `
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        background: radial-gradient(circle, #333, #111);
+    `;
+    
+    const ctx = steeringWheel.getContext('2d');
+    
+    // ⭐ KORMÁNY ASSET RAJZOLÁSA
+    if (steeringWheelAsset) {
+        try {
+            ctx.drawImage(steeringWheelAsset, 0, 0, 120, 120);
+            console.log('✅ Kormány asset sikeresen rajzolva mobilon');
+        } catch (error) {
+            console.warn('⚠️ Kormány asset rajzolási hiba:', error);
+            this.drawFallbackSteering(ctx);
+        }
+    } else {
+        console.warn('⚠️ Kormány asset nem elérhető, fallback rajzolás');
+        this.drawFallbackSteering(ctx);
     }
+    
+    steeringContainer.appendChild(steeringWheel);
+    
+    // ⭐ GOMB KONTÉNER
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 1000;
+    `;
+    
+    // ⭐ GÁZ GOMB
+    const gasButton = document.createElement('button');
+    gasButton.innerHTML = '⛽';
+    gasButton.style.cssText = `
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        border: 3px solid #00ff00;
+        background: rgba(0,255,0,0.2);
+        color: white;
+        font-size: 24px;
+        touch-action: none;
+        user-select: none;
+    `;
+    
+    // ⭐ FÉK GOMB
+    const brakeButton = document.createElement('button');
+    brakeButton.innerHTML = '🛑';
+    brakeButton.style.cssText = `
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        border: 3px solid #ff0000;
+        background: rgba(255,0,0,0.2);
+        color: white;
+        font-size: 24px;
+        touch-action: none;
+        user-select: none;
+    `;
+    
+    buttonContainer.appendChild(gasButton);
+    buttonContainer.appendChild(brakeButton);
+    
+    document.body.appendChild(steeringContainer);
+    document.body.appendChild(buttonContainer);
+    
+    // ⭐ TOUCH ESEMÉNYEK
+    this.setupSteeringEvents(steeringWheel);
+    this.setupButtonEvents(gasButton, brakeButton);
+    
+    console.log('✅ Mobil vezérlés létrehozva kormány asset-tel');
+}
+
+// ⭐ FALLBACK KORMÁNY RAJZOLÁS
+drawFallbackSteering(ctx) {
+    const centerX = 60;
+    const centerY = 60;
+    
+    // Külső gyűrű
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 55, 0, Math.PI * 2);
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fill();
+    
+    // Belső gyűrű
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 45, 0, Math.PI * 2);
+    ctx.fillStyle = '#333333';
+    ctx.fill();
+    
+    // Küllők
+    ctx.strokeStyle = '#555555';
+    ctx.lineWidth = 4;
+    for (let i = 0; i < 4; i++) {
+        const angle = (i * Math.PI) / 2;
+        ctx.beginPath();
+        ctx.moveTo(centerX + Math.cos(angle) * 20, centerY + Math.sin(angle) * 20);
+        ctx.lineTo(centerX + Math.cos(angle) * 45, centerY + Math.sin(angle) * 45);
+        ctx.stroke();
+    }
+    
+    // Központ
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 15, 0, Math.PI * 2);
+    ctx.fillStyle = '#444444';
+    ctx.fill();
+    
+    console.log('🎨 Fallback kormány rajzolva');
+}
+
     
     // ⭐ KORMÁNYKERÉK ESEMÉNYEK
     setupSteeringWheelEvents() {
