@@ -1,4 +1,4 @@
-import { ScreenManager } from './ScreenManager.js';
+import { ScreenManager } from './graphics/ScreenManager.js';
 import { HUD } from '../ui/HUD.js';
 
 export class Renderer {
