@@ -1,285 +1,251 @@
-import { ScreenManager } from './ScreenManager.js';
-import { HUD } from '../ui/HUD.js';
+import { GameEngine } from './core/GameEngine.js';
+import { AssetLoader } from './core/AssetLoader.js';
+import { InputManager } from './core/InputManager.js';
+import { Renderer } from './graphics/Renderer.js';
+import { AudioManager } from './audio/AudioManager.js';
 
-export class Renderer {
+class OutRunRacing {
     constructor() {
         this.canvas = null;
         this.ctx = null;
-        this.screenManager = new ScreenManager();
-        this.hud = new HUD();
-        this.isMobile = false;
+        this.width = 800;
+        this.height = 600;
+        this.scale = 2;
+        
+        // ⭐ MOBIL DETEKTÁLÁS
+        this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        // Komponensek
+        this.assetLoader = new AssetLoader();
+        this.inputManager = new InputManager();
+        this.gameEngine = new GameEngine();
+        this.renderer = new Renderer();
+        this.audioManager = new AudioManager();
+        
+        this.gameState = {
+            current: 'LOADING',
+            loadingProgress: 0,
+            introAccepted: false
+        };
+        
+        this.init();
     }
     
-    setCanvas(canvas, ctx) {
-        this.canvas = canvas;
-        this.ctx = ctx;
-        this.screenManager.setCanvas(canvas, ctx);
-        this.hud.setCanvas(canvas, ctx);
-        console.log('✅ Renderer canvas beállítva');
-    }
-    
-    // ⭐ SETMOBILE METÓDUS - EZ HIÁNYZOTT!
-    setMobile(isMobile) {
-        this.isMobile = isMobile;
-        console.log('✅ Renderer mobil mód:', isMobile);
+    async init() {
+        console.log('🏎️ OutRun Racing inicializálása...');
+        console.log('📱 Mobil eszköz:', this.isMobile);
         
-        // Átadjuk a child komponenseknek is
-        if (this.screenManager && this.screenManager.setMobile) {
-            this.screenManager.setMobile(isMobile);
-        }
-        if (this.hud && this.hud.setMobile) {
-            this.hud.setMobile(isMobile);
-        }
-    }
-    
-    render(gameState, gameEngine, assetLoader) {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.createCanvas();
+        this.gameLoop();
         
-        switch(gameState.current) {
-            case 'LOADING':
-                this.screenManager.renderLoadingScreen(gameState);
-                break;
-            case 'INTRO':
-                this.screenManager.renderIntroScreen();
-                break;
-            case 'PLAYING':
-                this.renderGame(gameEngine, assetLoader);
-                break;
-        }
-    }
-    
-    renderGame(gameEngine, assetLoader) {
-        this.ctx.save();
-        this.ctx.translate(gameEngine.game.shake.x, gameEngine.game.shake.y);
+        await this.simulateLoading();
+        await this.assetLoader.loadAssets();
+        this.audioManager.init();
+        this.gameEngine.buildTrack(this.assetLoader);
+        this.inputManager.setupControls(this);
+        this.audioManager.createMuteButton();
         
-        this.renderSky();
-        this.renderRoad(gameEngine);
-        this.renderPlayerCar(gameEngine, assetLoader);
-        
-        this.ctx.restore();
-        
-        this.hud.render(gameEngine);
-        
-        if (gameEngine.game.finished) {
-            this.screenManager.renderFinishLayer(gameEngine);
-        }
-    }
-    
-    renderSky() {
-        const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height * 0.6);
-        gradient.addColorStop(0, '#87CEEB');
-        gradient.addColorStop(1, '#98FB98');
-        
-        this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height * 0.6);
-    }
-    
-    renderRoad(gameEngine) {
-        const game = gameEngine.game;
-        const baseSegment = this.findSegment(game.position, game);
-        
-        if (!baseSegment) {
-            console.warn('⚠️ Nincs base segment');
-            return;
+        // ⭐ MOBIL VEZÉRLŐK
+        if (this.isMobile) {
+            this.createMobileControls();
         }
         
-        const basePercent = (game.position % game.segmentLength) / game.segmentLength;
-        const playerY = 0;
+        this.gameState.current = 'INTRO';
+        console.log('✅ Játék betöltve!');
+    }
+    
+    createCanvas() {
+        this.canvas = document.createElement('canvas');
         
-        let maxy = this.canvas.height;
-        let x = 0;
-        let dx = -(basePercent * baseSegment.curve);
+        // ⭐ MOBIL OPTIMALIZÁCIÓ
+        if (this.isMobile) {
+            this.width = 600;
+            this.height = 400;
+            this.scale = 1.5;
+        }
         
-        for (let n = 0; n < game.drawDistance; n++) {
-            const segmentIndex = (baseSegment.index + n) % game.road.length;
-            const segment = game.road[segmentIndex];
+        this.canvas.width = this.width * this.scale;
+        this.canvas.height = this.height * this.scale;
+        this.canvas.style.cssText = `
+            image-rendering: pixelated;
+            width: 100%;
+            max-width: 800px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            touch-action: none;
+            background: #000;
+        `;
+        
+        this.ctx = this.canvas.getContext('2d');
+        this.ctx.imageSmoothingEnabled = false;
+        
+        document.body.appendChild(this.canvas);
+        
+        // ⭐ DEBUG: Ellenőrizzük a renderer metódusokat
+        console.log('🔍 Renderer metódusok:', Object.getOwnPropertyNames(Object.getPrototypeOf(this.renderer)));
+        console.log('🔍 setMobile létezik?', typeof this.renderer.setMobile);
+        
+        // Komponenseknek átadjuk a canvas-t
+        this.renderer.setCanvas(this.canvas, this.ctx);
+        
+        // ⭐ BIZTONSÁGOS setMobile HÍVÁS
+        if (typeof this.renderer.setMobile === 'function') {
+            this.renderer.setMobile(this.isMobile);
+        } else {
+            console.error('❌ setMobile metódus nem létezik a Renderer-ben!');
+            // Fallback: hozzáadjuk a metódust
+            this.renderer.setMobile = (isMobile) => {
+                this.renderer.isMobile = isMobile;
+                console.log('✅ Fallback setMobile:', isMobile);
+            };
+            this.renderer.setMobile(this.isMobile);
+        }
+    }
+    
+    // ⭐ MOBIL VEZÉRLŐK LÉTREHOZÁSA
+    createMobileControls() {
+        console.log('📱 Mobil vezérlők létrehozása...');
+        
+        const mobileControls = document.createElement('div');
+        mobileControls.id = 'mobileControls';
+        mobileControls.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 1000;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        `;
+        
+        // Vezérlő gombok
+        const steerLeft = this.createMobileButton('⬅️', 'BALRA');
+        const steerRight = this.createMobileButton('➡️', 'JOBBRA');
+        const accelerate = this.createMobileButton('⬆️', 'GÁZ');
+        const brake = this.createMobileButton('⬇️', 'FÉK');
+        const nitro = this.createMobileButton('🚀', 'NITRO');
+        nitro.style.backgroundColor = '#FF4444';
+        
+        mobileControls.appendChild(steerLeft);
+        mobileControls.appendChild(brake);
+        mobileControls.appendChild(accelerate);
+        mobileControls.appendChild(steerRight);
+        mobileControls.appendChild(nitro);
+        
+        // Event listenerek
+        this.setupMobileButton(steerLeft, 'ArrowLeft');
+        this.setupMobileButton(steerRight, 'ArrowRight');
+        this.setupMobileButton(accelerate, 'ArrowUp');
+        this.setupMobileButton(brake, 'ArrowDown');
+        this.setupMobileButton(nitro, 'Space');
+        
+        document.body.appendChild(mobileControls);
+        
+        console.log('✅ Mobil vezérlők létrehozva');
+    }
+    
+    createMobileButton(emoji, text) {
+        const button = document.createElement('div');
+        button.innerHTML = `<div style="font-size: 24px;">${emoji}</div><div style="font-size: 10px;">${text}</div>`;
+        button.style.cssText = `
+            width: 60px;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #00FFFF;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-family: Arial, sans-serif;
+            cursor: pointer;
+            transition: all 0.1s;
+            touch-action: manipulation;
+        `;
+        
+        return button;
+    }
+    
+    setupMobileButton(button, keyCode) {
+        const onStart = (e) => {
+            e.preventDefault();
+            this.inputManager.keys[keyCode] = true;
+            button.style.backgroundColor = 'rgba(0, 255, 255, 0.5)';
+            button.style.transform = 'scale(0.95)';
             
-            if (!segment) continue;
-            
-            this.project(segment.p1, 
-                (game.playerX * game.roadWidth) - x, 
-                playerY + game.cameraY, 
-                game.position);
-            this.project(segment.p2, 
-                (game.playerX * game.roadWidth) - x - dx, 
-                playerY + game.cameraY, 
-                game.position);
-            
-            x += dx;
-            dx += segment.curve;
-            
-            if ((segment.p1.camera.z <= 0.84) || (segment.p2.screen.y >= maxy)) {
-                continue;
+            if (navigator.vibrate) {
+                navigator.vibrate(50);
             }
+        };
+        
+        const onEnd = (e) => {
+            e.preventDefault();
+            this.inputManager.keys[keyCode] = false;
+            button.style.backgroundColor = keyCode === 'Space' ? '#FF4444' : 'rgba(0, 0, 0, 0.7)';
+            button.style.transform = 'scale(1)';
+        };
+        
+        button.addEventListener('touchstart', onStart, { passive: false });
+        button.addEventListener('touchend', onEnd, { passive: false });
+        button.addEventListener('touchcancel', onEnd, { passive: false });
+        button.addEventListener('mousedown', onStart);
+        button.addEventListener('mouseup', onEnd);
+        button.addEventListener('mouseleave', onEnd);
+    }
+    
+    async simulateLoading() {
+        return new Promise((resolve) => {
+            const steps = [
+                'Initializing Racing Engine...',
+                'Loading Lotus Sprites...',
+                'Generating Track Data...',
+                'Setting up Audio System...',
+                'Calibrating Speedometer...',
+                'Ready to Race!'
+            ];
             
-            this.renderSegment(segment);
-            maxy = segment.p1.screen.y;
-        }
-        
-        this.renderFinishLine(game);
-        this.renderCars(game);
-    }
-    
-    findSegment(z, game) {
-        const segmentIndex = Math.floor(z / game.segmentLength);
-        if (segmentIndex >= 0 && segmentIndex < game.road.length) {
-            return game.road[segmentIndex];
-        }
-        return game.road.length > 0 ? game.road[0] : null;
-    }
-    
-    project(p, cameraX, cameraY, cameraZ) {
-        p.camera.x = (p.world.x || 0) - cameraX;
-        p.camera.y = (p.world.y || 0) - cameraY;
-        p.camera.z = (p.world.z || 0) - cameraZ;
-        
-        if (p.camera.z <= 0) {
-            p.screen.scale = 0;
-            p.screen.x = 0;
-            p.screen.y = 0;
-            p.screen.w = 0;
-            return;
-        }
-        
-        p.screen.scale = 0.84 / p.camera.z;
-        p.screen.x = Math.round((this.canvas.width / 2) + (p.screen.scale * p.camera.x * this.canvas.width / 2));
-        p.screen.y = Math.round((this.canvas.height / 2) - (p.screen.scale * p.camera.y * this.canvas.height / 2));
-        p.screen.w = Math.round(p.screen.scale * 2000 * this.canvas.width / 2);
-    }
-    
-    renderSegment(segment) {
-        const rumbleWidth = 2000 / 8;
-        const laneWidth = 2000 / 20;
-        
-        const r1 = rumbleWidth * segment.p1.screen.scale;
-        const r2 = rumbleWidth * segment.p2.screen.scale;
-        const l1 = laneWidth * segment.p1.screen.scale;
-        const l2 = laneWidth * segment.p2.screen.scale;
-        
-        // Fű
-        this.ctx.fillStyle = segment.color === 'dark' ? '#228B22' : '#32CD32';
-        this.ctx.fillRect(0, segment.p2.screen.y, this.canvas.width, segment.p1.screen.y - segment.p2.screen.y);
-        
-        // Út oldalsó csíkok
-        this.polygon(
-            segment.p1.screen.x - segment.p1.screen.w - r1, segment.p1.screen.y,
-            segment.p1.screen.x - segment.p1.screen.w, segment.p1.screen.y,
-            segment.p2.screen.x - segment.p2.screen.w, segment.p2.screen.y,
-            segment.p2.screen.x - segment.p2.screen.w - r2, segment.p2.screen.y,
-            segment.color === 'dark' ? '#FF0000' : '#FFFFFF'
-        );
-        
-        this.polygon(
-            segment.p1.screen.x + segment.p1.screen.w + r1, segment.p1.screen.y,
-            segment.p1.screen.x + segment.p1.screen.w, segment.p1.screen.y,
-            segment.p2.screen.x + segment.p2.screen.w, segment.p2.screen.y,
-            segment.p2.screen.x + segment.p2.screen.w + r2, segment.p2.screen.y,
-            segment.color === 'dark' ? '#FF0000' : '#FFFFFF'
-        );
-        
-        // Út
-        this.polygon(
-            segment.p1.screen.x - segment.p1.screen.w, segment.p1.screen.y,
-            segment.p1.screen.x + segment.p1.screen.w, segment.p1.screen.y,
-            segment.p2.screen.x + segment.p2.screen.w, segment.p2.screen.y,
-            segment.p2.screen.x - segment.p2.screen.w, segment.p2.screen.y,
-            segment.color === 'dark' ? '#666666' : '#999999'
-        );
-        
-        // Középvonal
-        if (segment.color === 'light') {
-            this.polygon(
-                segment.p1.screen.x - l1, segment.p1.screen.y,
-                segment.p1.screen.x + l1, segment.p1.screen.y,
-                segment.p2.screen.x + l2, segment.p2.screen.y,
-                segment.p2.screen.x - l2, segment.p2.screen.y,
-                '#FFFF00'
-            );
-        }
-    }
-    
-    polygon(x1, y1, x2, y2, x3, y3, x4, y4, color) {
-        this.ctx.fillStyle = color;
-        this.ctx.beginPath();
-        this.ctx.moveTo(x1, y1);
-        this.ctx.lineTo(x2, y2);
-        this.ctx.lineTo(x3, y3);
-        this.ctx.lineTo(x4, y4);
-        this.ctx.closePath();
-        this.ctx.fill();
-    }
-    
-    renderFinishLine(game) {
-        const finishPosition = game.trackLength - 500;
-        const distanceToFinish = finishPosition - game.position;
-        
-        if (distanceToFinish > 0 && distanceToFinish < 2000) {
-            const finishSegment = this.findSegment(finishPosition, game);
-            
-            if (finishSegment && finishSegment.p1 && finishSegment.p1.screen) {
-                this.ctx.fillStyle = '#000000';
-                this.ctx.fillRect(0, finishSegment.p1.screen.y - 10, this.canvas.width, 20);
+            let currentStep = 0;
+            const interval = setInterval(() => {
+                this.gameState.loadingProgress = (currentStep / steps.length) * 100;
+                this.gameState.loadingText = steps[currentStep];
                 
-                for (let i = 0; i < this.canvas.width; i += 40) {
-                    this.ctx.fillStyle = i % 80 === 0 ? '#FFFFFF' : '#000000';
-                    this.ctx.fillRect(i, finishSegment.p1.screen.y - 10, 40, 20);
+                currentStep++;
+                
+                if (currentStep >= steps.length) {
+                    clearInterval(interval);
+                    this.gameState.loadingProgress = 100;
+                    setTimeout(resolve, 500);
                 }
-            }
-        }
-    }
-    
-    renderCars(game) {
-        game.cars.forEach(car => {
-            if (car.z > -800 && car.z < 3000 && car.sprite) {
-                this.renderCarAtPosition(car, game);
-            }
+            }, 800);
         });
     }
     
-    renderCarAtPosition(car, game) {
-        const carWorldZ = game.position + car.z;
-        const carWorldX = car.offset * game.roadWidth;
-        const carWorldY = 0;
-        
-        const cameraX = carWorldX - (game.playerX * game.roadWidth);
-        const cameraY = carWorldY - game.cameraY;
-        const cameraZ = carWorldZ - game.position;
-        
-        if (cameraZ <= 0.1) return;
-        
-        const scale = 0.84 / cameraZ;
-        const screenX = (this.canvas.width / 2) + (scale * cameraX * this.canvas.width / 2);
-        const screenY = (this.canvas.height / 2) - (scale * cameraY * this.canvas.height / 2);
-        
-        const baseScale = 8.0;
-        const destW = car.sprite.width * scale * this.canvas.width * baseScale / 6;
-        const destH = car.sprite.height * scale * this.canvas.width * baseScale / 6;
-        
-        const finalW = Math.max(20, Math.min(200, destW));
-        const finalH = Math.max(12, Math.min(120, destH));
-        
-        const destX = screenX - (finalW / 2);
-        const destY = screenY - finalH;
-        
-        this.ctx.drawImage(car.sprite, destX, destY, finalW, finalH);
+    update(dt) {
+        this.gameEngine.update(dt, this.gameState, this.inputManager, this.audioManager);
     }
     
-    renderPlayerCar(gameEngine, assetLoader) {
-        const assets = assetLoader.getAssets();
-        if (!assets.player) return;
+    render() {
+        this.renderer.render(this.gameState, this.gameEngine, this.assetLoader);
+    }
+    
+    gameLoop() {
+        const now = Date.now();
+        const dt = Math.min(1, (now - (this.lastTime || now)) / 1000);
+        this.lastTime = now;
         
-        const carScale = this.isMobile ? 2.0 : 2.5;
-        const carW = assets.player.width * carScale;
-        const carH = assets.player.height * carScale;
+        this.update(dt);
+        this.render();
         
-        const carX = (this.canvas.width / 2) - (carW / 2);
-        const carY = this.canvas.height - carH - 20;
-        
-        this.ctx.save();
-        this.ctx.globalAlpha = 0.9;
-        this.ctx.translate(carX + carW / 2, carY + carH / 2);
-        this.ctx.rotate(gameEngine.game.playerX * 0.1);
-        this.ctx.drawImage(assets.player, -carW / 2, -carH / 2, carW, carH);
-        this.ctx.restore();
+        requestAnimationFrame(() => this.gameLoop());
     }
 }
+
+// Játék indítása
+window.addEventListener('load', () => {
+    new OutRunRacing();
+});

@@ -15,13 +15,21 @@ export class Renderer {
         this.ctx = ctx;
         this.screenManager.setCanvas(canvas, ctx);
         this.hud.setCanvas(canvas, ctx);
+        console.log('✅ Renderer canvas beállítva');
     }
     
-    // ⭐ HIÁNYZÓ setMobile METÓDUS HOZZÁADÁSA
+    // ⭐ SETMOBILE METÓDUS - EZ HIÁNYZOTT!
     setMobile(isMobile) {
         this.isMobile = isMobile;
-        this.screenManager.setMobile(isMobile);
-        this.hud.setMobile(isMobile);
+        console.log('✅ Renderer mobil mód:', isMobile);
+        
+        // Átadjuk a child komponenseknek is
+        if (this.screenManager && this.screenManager.setMobile) {
+            this.screenManager.setMobile(isMobile);
+        }
+        if (this.hud && this.hud.setMobile) {
+            this.hud.setMobile(isMobile);
+        }
     }
     
     render(gameState, gameEngine, assetLoader) {
@@ -69,6 +77,12 @@ export class Renderer {
     renderRoad(gameEngine) {
         const game = gameEngine.game;
         const baseSegment = this.findSegment(game.position, game);
+        
+        if (!baseSegment) {
+            console.warn('⚠️ Nincs base segment');
+            return;
+        }
+        
         const basePercent = (game.position % game.segmentLength) / game.segmentLength;
         const playerY = 0;
         
@@ -111,13 +125,21 @@ export class Renderer {
         if (segmentIndex >= 0 && segmentIndex < game.road.length) {
             return game.road[segmentIndex];
         }
-        return game.road[0];
+        return game.road.length > 0 ? game.road[0] : null;
     }
     
     project(p, cameraX, cameraY, cameraZ) {
         p.camera.x = (p.world.x || 0) - cameraX;
         p.camera.y = (p.world.y || 0) - cameraY;
         p.camera.z = (p.world.z || 0) - cameraZ;
+        
+        if (p.camera.z <= 0) {
+            p.screen.scale = 0;
+            p.screen.x = 0;
+            p.screen.y = 0;
+            p.screen.w = 0;
+            return;
+        }
         
         p.screen.scale = 0.84 / p.camera.z;
         p.screen.x = Math.round((this.canvas.width / 2) + (p.screen.scale * p.camera.x * this.canvas.width / 2));
@@ -207,7 +229,6 @@ export class Renderer {
     }
     
     renderCars(game) {
-        // ⭐ JAVÍTOTT AUTÓK RENDERELÉSE
         game.cars.forEach(car => {
             if (car.z > -800 && car.z < 3000 && car.sprite) {
                 this.renderCarAtPosition(car, game);
@@ -247,7 +268,7 @@ export class Renderer {
         const assets = assetLoader.getAssets();
         if (!assets.player) return;
         
-        const carScale = this.isMobile ? 2.0 : 2.5; // ⭐ KISEBB MOBILON
+        const carScale = this.isMobile ? 2.0 : 2.5;
         const carW = assets.player.width * carScale;
         const carH = assets.player.height * carScale;
         
