@@ -13,14 +13,14 @@ export class AssetLoader {
         
         try {
             // ⭐ JÁTÉKOS AUTÓ BETÖLTÉSE
-            this.assets.player = await this.loadImage('assets/player_car.png');
+            this.assets.player = await this.loadImage('assets/player-car.png');
             
             // ⭐ ELLENFÉL AUTÓK BETÖLTÉSE
             const enemyCarFiles = [
-                'assets/enemy_car1.png',
-                'assets/enemy_car2.png',
-                'assets/enemy_car3.png',
-                'assets/enemy_car4.png',
+                'assets/enemy-car1.png',
+                'assets/enemy-car2.png',
+                'assets/enemy-car3.png',
+                'assets/enemy-car4.png',
 
             ];
             
