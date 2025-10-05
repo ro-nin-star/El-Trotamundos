@@ -47,7 +47,7 @@ export class Renderer {
         
         this.renderSky();
         this.renderRoad(gameEngine);
-        this.renderSigns(gameEngine); // ⭐ TÁBLÁK RENDERELÉSE
+        this.renderSigns(gameEngine);
         this.renderPlayerCar(gameEngine, assetLoader);
         
         this.ctx.restore();
@@ -111,7 +111,6 @@ export class Renderer {
         this.renderCars(game);
     }
     
-    // ⭐ TÁBLÁK RENDERELÉSE
     renderSigns(gameEngine) {
         const game = gameEngine.game;
         
@@ -121,16 +120,13 @@ export class Renderer {
             const signWorldZ = sign.z;
             const distanceToSign = signWorldZ - game.position;
             
-            // ⭐ LÁTHATÓSÁG ELLENŐRZÉS
             if (distanceToSign > -1000 && distanceToSign < 4000) {
                 this.renderSignAtPosition(sign, game, distanceToSign);
             }
         });
     }
     
-    // ⭐ EGYEDI TÁBLA RENDERELÉSE
     renderSignAtPosition(sign, game, distanceToSign) {
-        // ⭐ SPRITE GENERÁLÁSA HA SZÜKSÉGES
         if (!sign.sprite) {
             switch (sign.type) {
                 case 'curve':
@@ -147,9 +143,8 @@ export class Renderer {
         
         if (!sign.sprite) return;
         
-        // ⭐ POZÍCIÓ SZÁMÍTÁSA
         const signWorldX = sign.offset * game.roadWidth;
-        const signWorldY = -50; // Magasság
+        const signWorldY = -50;
         const signWorldZ = sign.z;
         
         const cameraX = signWorldX - (game.playerX * game.roadWidth);
@@ -158,12 +153,10 @@ export class Renderer {
         
         if (cameraZ <= 0.1) return;
         
-        // ⭐ KÉPERNYŐ KOORDINÁTÁK
         const scale = 0.84 / cameraZ;
         const screenX = (this.canvas.width / 2) + (scale * cameraX * this.canvas.width / 2);
         const screenY = (this.canvas.height / 2) - (scale * cameraY * this.canvas.height / 2);
         
-        // ⭐ MÉRETEZÉS
         const signScale = Math.max(0.3, Math.min(2.0, scale * 15));
         const finalW = sign.sprite.width * signScale;
         const finalH = sign.sprite.height * signScale;
@@ -171,13 +164,11 @@ export class Renderer {
         const destX = screenX - (finalW / 2);
         const destY = screenY - finalH;
         
-        // ⭐ TÁVOLSÁG ALAPÚ ÁTLÁTSZÓSÁG
         let alpha = 1.0;
         if (distanceToSign > 2000) {
             alpha = Math.max(0.3, 1.0 - ((distanceToSign - 2000) / 2000));
         }
         
-        // ⭐ RENDERELÉS
         this.ctx.save();
         this.ctx.globalAlpha = alpha;
         this.ctx.imageSmoothingEnabled = false;
@@ -185,7 +176,6 @@ export class Renderer {
         try {
             this.ctx.drawImage(sign.sprite, destX, destY, finalW, finalH);
             
-            // ⭐ ÁRNYÉK EFFEKT
             this.ctx.globalAlpha = alpha * 0.3;
             this.ctx.fillStyle = '#000000';
             this.ctx.fillRect(destX + 5, destY + finalH - 5, finalW * 0.8, 10);
@@ -313,6 +303,7 @@ export class Renderer {
         });
     }
     
+    // ⭐ TELJESEN ÚJRAÍRT AUTÓ MÉRETEZÉS - REALISZTIKUS KÖZELI MÉRET
     renderCarAtPosition(car, game) {
         const carWorldZ = game.position + car.z;
         const carWorldX = car.offset * game.roadWidth;
@@ -331,44 +322,94 @@ export class Renderer {
         const spriteWidth = car.sprite.width || 40;
         const spriteHeight = car.sprite.height || 20;
         
+        // ⭐ JAVÍTOTT MÉRETEZÉSI ALGORITMUS
         let finalW, finalH;
+        const distance = Math.abs(car.z);
         
         if (car.z > 0) {
-            const frontScale = Math.max(0.8, Math.min(6.0, scale * 35));
-            finalW = spriteWidth * frontScale;
-            finalH = spriteHeight * frontScale;
-            
-            finalW = Math.max(40, Math.min(400, finalW));
-            finalH = Math.max(25, Math.min(250, finalH));
+            // ⭐ ELŐTTÜNK LÉVŐ AUTÓK - TÁVOLSÁG ALAPÚ MÉRETEZÉS
+            if (distance < 500) {
+                // ⭐ NAGYON KÖZELI AUTÓK (0-500 távolság) - NAGY MÉRET
+                const closeScale = Math.max(4.0, Math.min(8.0, scale * 80));
+                finalW = spriteWidth * closeScale;
+                finalH = spriteHeight * closeScale;
+                
+                // Minimum és maximum méret közeli autókhoz
+                finalW = Math.max(120, Math.min(600, finalW));
+                finalH = Math.max(80, Math.min(400, finalH));
+                
+            } else if (distance < 1500) {
+                // ⭐ KÖZEPES TÁVOLSÁG (500-1500) - KÖZEPES MÉRET
+                const mediumScale = Math.max(2.0, Math.min(4.0, scale * 50));
+                finalW = spriteWidth * mediumScale;
+                finalH = spriteHeight * mediumScale;
+                
+                finalW = Math.max(80, Math.min(300, finalW));
+                finalH = Math.max(50, Math.min(200, finalH));
+                
+            } else {
+                // ⭐ TÁVOLI AUTÓK (1500+) - EREDETI MÉRET
+                const farScale = Math.max(0.8, Math.min(2.0, scale * 35));
+                finalW = spriteWidth * farScale;
+                finalH = spriteHeight * farScale;
+                
+                finalW = Math.max(40, Math.min(150, finalW));
+                finalH = Math.max(25, Math.min(100, finalH));
+            }
             
         } else {
-            const backScale = Math.max(0.3, Math.min(4.0, scale * 25));
-            finalW = spriteWidth * backScale;
-            finalH = spriteHeight * backScale;
-            
-            finalW = Math.max(15, Math.min(300, finalW));
-            finalH = Math.max(10, Math.min(180, finalH));
+            // ⭐ MÖGÖTTÜNK LÉVŐ AUTÓK - KISEBB MÉRETEZÉS
+            if (distance < 300) {
+                // ⭐ KÖZELI HÁTSÓ AUTÓK
+                const backCloseScale = Math.max(2.0, Math.min(4.0, scale * 40));
+                finalW = spriteWidth * backCloseScale;
+                finalH = spriteHeight * backCloseScale;
+                
+                finalW = Math.max(60, Math.min(250, finalW));
+                finalH = Math.max(40, Math.min(180, finalH));
+                
+            } else {
+                // ⭐ TÁVOLI HÁTSÓ AUTÓK
+                const backScale = Math.max(0.5, Math.min(2.0, scale * 25));
+                finalW = spriteWidth * backScale;
+                finalH = spriteHeight * backScale;
+                
+                finalW = Math.max(20, Math.min(120, finalW));
+                finalH = Math.max(15, Math.min(80, finalH));
+            }
         }
         
+        // ⭐ POZÍCIÓ SZÁMÍTÁSA
         const destX = screenX - (finalW / 2);
         const destY = screenY - finalH;
         
+        // ⭐ TÁVOLSÁG ALAPÚ ÁTLÁTSZÓSÁG
         let alpha = 1.0;
         if (car.z > 4000) {
             alpha = Math.max(0.3, 1.0 - ((car.z - 4000) / 4000));
         }
         
-        if (destX + finalW < 0 || destX > this.canvas.width || 
-            destY + finalH < 0 || destY > this.canvas.height) {
+        // ⭐ KÉPERNYŐN KÍVÜLI AUTÓK KISZŰRÉSE
+        if (destX + finalW < -50 || destX > this.canvas.width + 50 || 
+            destY + finalH < 0 || destY > this.canvas.height + 50) {
             return;
         }
         
+        // ⭐ RENDERELÉS
         this.ctx.save();
         this.ctx.globalAlpha = alpha;
         this.ctx.imageSmoothingEnabled = false;
         
         try {
             this.ctx.drawImage(car.sprite, destX, destY, finalW, finalH);
+            
+            // ⭐ DEBUG INFO (kapcsolható)
+            if (false) { // true-ra állítva debug infót mutat
+                this.ctx.fillStyle = 'white';
+                this.ctx.font = '10px Arial';
+                this.ctx.fillText(`D:${Math.round(distance)} S:${finalW.toFixed(0)}x${finalH.toFixed(0)}`, destX, destY - 5);
+            }
+            
         } catch (error) {
             console.warn('⚠️ Autó renderelési hiba:', error);
         }
@@ -380,7 +421,8 @@ export class Renderer {
         const assets = assetLoader.getAssets();
         if (!assets.player) return;
         
-        const carScale = this.isMobile ? 2.0 : 2.5;
+        // ⭐ JÁTÉKOS AUTÓ MÉRETE IS NAGYOBB LEGYEN
+        const carScale = this.isMobile ? 2.5 : 3.0; // Nagyobb alapméret
         const carW = assets.player.width * carScale;
         const carH = assets.player.height * carScale;
         
