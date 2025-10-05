@@ -20,6 +20,7 @@ export class AssetLoader {
                 'assets/enemy_car1.png',
                 'assets/enemy_car2.png',
                 'assets/enemy_car3.png',
+                'assets/enemy_car4.png',
 
             ];
             
