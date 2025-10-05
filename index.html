@@ -2,49 +2,84 @@
 <html lang="hu">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Racing 86 - OutRun Style Game</title>
-    <link rel="stylesheet" href="css/style.css">
-    <!-- ⭐ FAVICON HOZZÁADÁSA -->
-    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏎️</text></svg>">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>El Trotamundos</title>
     <style>
-        /* ⭐ MOBIL OPTIMALIZÁCIÓ */
-        body {
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
             background: #000;
-            color: white;
-            font-family: Arial, sans-serif;
             overflow: hidden;
-            touch-action: none;
-            -webkit-user-select: none;
-            user-select: none;
+            font-family: Arial, sans-serif;
         }
         
-        canvas {
+        #gameCanvas {
             display: block;
-            margin: 0 auto;
             background: #000;
-            touch-action: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
         }
         
-        /* Mobil viewport fix */
-        @media (max-width: 768px) {
-            html, body {
-                height: 100vh;
-                height: -webkit-fill-available;
-                overflow: hidden;
-            }
-            
-            canvas {
-                width: 100vw !important;
-                height: auto !important;
-                max-height: 100vh;
-            }
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 24px;
+            z-index: 1000;
+            text-align: center;
+        }
+        
+        .loading-spinner {
+            border: 4px solid #333;
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
-    <script type="module" src="js/main.js"></script>
+    <!-- ⭐ BETÖLTÉS KÉPERNYŐ -->
+    <div id="loading" class="loading">
+        <div class="loading-spinner"></div>
+        🏎️ El Trotamundos<br>
+        <small>Betöltés...</small>
+    </div>
+    
+    <!-- ⭐ JÁTÉK CANVAS -->
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    
+    <!-- ⭐ JÁTÉK BETÖLTÉSE -->
+    <script type="module">
+        // ⭐ AZONNALI CANVAS ELLENŐRZÉS
+        console.log('🔍 Canvas elem keresése...');
+        const canvas = document.getElementById('gameCanvas');
+        if (canvas) {
+            console.log('✅ Canvas elem megtalálva:', canvas);
+        } else {
+            console.error('❌ Canvas elem nem található!');
+        }
+        
+        // ⭐ JÁTÉK BETÖLTÉSE
+        import('./js/main.js').catch(error => {
+            console.error('❌ Játék betöltési hiba:', error);
+            document.getElementById('loading').innerHTML = '❌ Betöltési hiba!<br><small>Frissítsd az oldalt</small>';
+        });
+    </script>
 </body>
 </html>
