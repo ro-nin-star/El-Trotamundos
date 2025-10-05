@@ -10,9 +10,9 @@ export class AssetLoader {
         
         const assetList = [
             { name: 'player', src: 'assets/player-car.png' },
-            { name: 'enemy1', src: 'assets/enemy-car-1.png' },
-            { name: 'enemy2', src: 'assets/enemy-car-2.png' },
-            { name: 'enemy3', src: 'assets/enemy-car-3.png' },
+            { name: 'enemy1', src: 'assets/enemy-car1.png' },
+            { name: 'enemy2', src: 'assets/enemy-car2.png' },
+            { name: 'enemy3', src: 'assets/enemy-car3.png' },
             { name: 'steeringWheel', src: 'assets/steering-wheel.png' } // ⭐ KORMÁNY ASSET
         ];
         
@@ -35,7 +35,7 @@ export class AssetLoader {
             
             img.onload = () => {
                 this.assets[name] = img;
-                console.log(`✅ ${name} betöltve`);
+                console.log(`✅ ${name} betöltve (${img.width}x${img.height}px)`);
                 resolve();
             };
             
@@ -77,56 +77,93 @@ export class AssetLoader {
             ctx.fillRect(15, 6, 10, 8);
             
         } else if (name === 'steeringWheel') {
-            // ⭐ KORMÁNY GENERÁLÁSA
+            // ⭐ KORMÁNY GENERÁLÁSA (MOBIL-OPTIMALIZÁLT)
             canvas.width = 200;
             canvas.height = 200;
+            const centerX = 100;
+            const centerY = 100;
             
-            // Külső gyűrű
+            // ⭐ KÜLSŐ GYŰRŰ
             ctx.beginPath();
-            ctx.arc(100, 100, 90, 0, Math.PI * 2);
+            ctx.arc(centerX, centerY, 90, 0, Math.PI * 2);
             ctx.fillStyle = '#1a1a1a';
             ctx.fill();
             
-            // Belső gyűrű
+            // ⭐ KÜLSŐ KERET
             ctx.beginPath();
-            ctx.arc(100, 100, 75, 0, Math.PI * 2);
-            ctx.fillStyle = '#333333';
-            ctx.fill();
-            
-            // Küllők
-            ctx.strokeStyle = '#555555';
-            ctx.lineWidth = 8;
-            ctx.lineCap = 'round';
-            for (let i = 0; i < 4; i++) {
-                const angle = (i * Math.PI) / 2;
-                ctx.beginPath();
-                ctx.moveTo(100 + Math.cos(angle) * 30, 100 + Math.sin(angle) * 30);
-                ctx.lineTo(100 + Math.cos(angle) * 75, 100 + Math.sin(angle) * 75);
-                ctx.stroke();
-            }
-            
-            // Központi rész
-            ctx.beginPath();
-            ctx.arc(100, 100, 25, 0, Math.PI * 2);
+            ctx.arc(centerX, centerY, 90, 0, Math.PI * 2);
+            ctx.arc(centerX, centerY, 80, 0, Math.PI * 2, true);
             ctx.fillStyle = '#444444';
             ctx.fill();
             
-            // Fényes effekt
-            const gradient = ctx.createRadialGradient(85, 85, 10, 100, 100, 90);
+            // ⭐ KÖZÉPSŐ GYŰRŰ
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 80, 0, Math.PI * 2);
+            ctx.fillStyle = '#2a2a2a';
+            ctx.fill();
+            
+            // ⭐ BELSŐ GYŰRŰ
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 70, 0, Math.PI * 2);
+            ctx.fillStyle = '#333333';
+            ctx.fill();
+            
+            // ⭐ KÜLLŐK (4 DARAB)
+            ctx.strokeStyle = '#555555';
+            ctx.lineWidth = 8;
+            ctx.lineCap = 'round';
+            
+            for (let i = 0; i < 4; i++) {
+                const angle = (i * Math.PI) / 2;
+                ctx.beginPath();
+                ctx.moveTo(centerX + Math.cos(angle) * 30, centerY + Math.sin(angle) * 30);
+                ctx.lineTo(centerX + Math.cos(angle) * 70, centerY + Math.sin(angle) * 70);
+                ctx.stroke();
+            }
+            
+            // ⭐ KÖZPONTI NAV
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 25, 0, Math.PI * 2);
+            ctx.fillStyle = '#444444';
+            ctx.fill();
+            
+            // ⭐ KÖZPONTI KERET
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 25, 0, Math.PI * 2);
+            ctx.strokeStyle = '#666666';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // ⭐ FÉNYES EFFEKT
+            const gradient = ctx.createRadialGradient(
+                centerX - 20, centerY - 20, 5, 
+                centerX, centerY, 90
+            );
             gradient.addColorStop(0, 'rgba(255,255,255,0.3)');
+            gradient.addColorStop(0.3, 'rgba(255,255,255,0.1)');
             gradient.addColorStop(1, 'rgba(255,255,255,0)');
+            
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 90, 0, Math.PI * 2);
             ctx.fillStyle = gradient;
             ctx.fill();
             
-            // Logo
+            // ⭐ LOGO
             ctx.fillStyle = '#FFFFFF';
             ctx.font = 'bold 16px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText('🏎️', 100, 108);
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🏎️', centerX, centerY);
+            
+            // ⭐ POZÍCIÓ JELZŐ (FELÜL)
+            ctx.fillStyle = '#FFFF00';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY - 75, 3, 0, Math.PI * 2);
+            ctx.fill();
         }
         
         this.assets[name] = canvas;
-        console.log(`🎨 ${name} generálva`);
+        console.log(`🎨 ${name} generálva (${canvas.width}x${canvas.height}px)`);
     }
     
     generateFallbackAssets() {
@@ -151,6 +188,18 @@ export class AssetLoader {
         if (this.enemySprites.length === 0) {
             console.warn('⚠️ Nincs elérhető ellenfél sprite!');
         }
+    }
+    
+    // ⭐ KORMÁNY ASSET GETTER (MOBIL TÁMOGATÁSSAL)
+    getSteeringWheelAsset() {
+        if (this.assets['steeringWheel']) {
+            console.log('✅ Kormány asset betöltve:', this.assets['steeringWheel']);
+            return this.assets['steeringWheel'];
+        }
+        
+        console.warn('⚠️ Kormány asset nincs betöltve, generálás...');
+        this.generateAsset('steeringWheel');
+        return this.assets['steeringWheel'];
     }
     
     getAssets() {

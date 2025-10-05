@@ -3,13 +3,12 @@ import { MapGenerator } from './MapGenerator.js';
 export class TrackBuilder {
     constructor() {
         this.signRenderer = null;
-        this.mapGenerator = new MapGenerator();
+        this.mapGenerator = new MapGenerator(); // ⭐ PUBLIKUS HOZZÁFÉRÉS
     }
     
     async buildTrack(game, assetLoader, mapImageSrc = null) {
         console.log('🏗️ Pálya építése...');
         
-        // ⭐ SIGNRENDERER IMPORTÁLÁSA
         try {
             const module = await import('../graphics/SignRenderer.js');
             this.signRenderer = new module.SignRenderer();
@@ -17,25 +16,18 @@ export class TrackBuilder {
             console.warn('⚠️ SignRenderer betöltési hiba:', error);
         }
         
-        // ⭐ TÉRKÉP ALAPÚ PÁLYA ÉPÍTÉS
         if (mapImageSrc) {
             try {
                 await this.mapGenerator.loadMap(mapImageSrc);
                 this.mapGenerator.generateTrackFromMap(game);
                 
-                // ⭐ DEBUG TÉRKÉP MEGJELENÍTÉSE (opcionális)
-                if (window.location.search.includes('debug=map')) {
-                    this.mapGenerator.showMapDebug();
-                }
-                
-                console.log('✅ Térkép alapú pálya kész!');
+                console.log(`✅ Térkép alapú pálya kész! Hossz: ${Math.round(game.trackLength/1000)}km`);
                 return;
             } catch (error) {
                 console.warn('⚠️ Térkép alapú pálya építési hiba:', error);
             }
         }
         
-        // ⭐ ALAPÉRTELMEZETT PÁLYA ÉPÍTÉS (HA NINCS TÉRKÉP)
         this.buildDefaultTrack(game);
     }
     

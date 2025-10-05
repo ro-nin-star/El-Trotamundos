@@ -1,11 +1,13 @@
 import { CarPhysics } from '../physics/CarPhysics.js';
 import { TrackBuilder } from '../physics/TrackBuilder.js';
+import { MiniMap } from '../ui/Minimap.js'; 
 
 export class GameEngine {
     constructor() {
         this.carPhysics = new CarPhysics();
         this.trackBuilder = new TrackBuilder();
         this.assetLoader = null;
+        this.miniMap = new MiniMap(); // ⭐ MINI TÉRKÉP
         
         this.game = {
             playerX: 0,
@@ -28,16 +30,15 @@ export class GameEngine {
             roadWidth: 2000,
             segmentLength: 200,
             drawDistance: 400,
-            trackLength: 50000,
+            trackLength: 50000, // ⭐ DINAMIKUSAN FRISSÜL A TÉRKÉPBŐL
             road: [],
             cars: [],
             lastCarSpawn: 0,
             carSpawnDelay: 2000,
-            mapImageSrc: null // ⭐ TÉRKÉP KÉP ÚTVONAL
+            mapImageSrc: null
         };
     }
     
-    // ⭐ TÉRKÉP BEÁLLÍTÁSA
     setMapImage(mapImageSrc) {
         this.game.mapImageSrc = mapImageSrc;
         console.log(`🗺️ Térkép beállítva: ${mapImageSrc}`);
@@ -46,12 +47,19 @@ export class GameEngine {
     async buildTrack(assetLoader) {
         this.assetLoader = assetLoader;
         
-        // ⭐ TÉRKÉP ALAPÚ PÁLYA ÉPÍTÉS
         await this.trackBuilder.buildTrack(this.game, assetLoader, this.game.mapImageSrc);
+        
+        // ⭐ MINI TÉRKÉP INICIALIZÁLÁSA
+        if (this.trackBuilder.mapGenerator && this.trackBuilder.mapGenerator.getMiniMapData) {
+            const mapData = this.trackBuilder.mapGenerator.getMiniMapData();
+            if (mapData.originalImage) {
+                this.miniMap.init(mapData);
+                console.log('🗺️ Mini térkép inicializálva');
+            }
+        }
     }
     
-    
-  update(dt, gameState, inputManager, audioManager) {
+    update(dt, gameState, inputManager, audioManager) {
         if (gameState.current !== 'PLAYING') return;
         
         this.carPhysics.update(dt, this.game, inputManager);
@@ -59,6 +67,9 @@ export class GameEngine {
         this.updatePosition(dt);
         this.updateCars(dt);
         this.spawnNewCar();
+        
+        // ⭐ MINI TÉRKÉP FRISSÍTÉSE
+        this.miniMap.updatePlayerPosition(this.game.position, this.game.trackLength);
         
         if (audioManager && audioManager.updateEngineSound) {
             audioManager.updateEngineSound(this.game);
@@ -75,6 +86,7 @@ export class GameEngine {
             }
         }
     }
+    
     updateGearAndRPM(dt) {
         const speedKmh = Math.floor((this.game.speed / this.game.maxSpeed) * 300);
         let newGear = 1;
@@ -148,7 +160,7 @@ export class GameEngine {
     }
     
     avoidCarCollisions(currentCar, currentIndex) {
-        const safeDistance = 400; // ⭐ NAGYOBB BIZTONSÁGOS TÁVOLSÁG
+        const safeDistance = 400;
         const sideDistance = 0.3;
         
         this.game.cars.forEach((otherCar, otherIndex) => {
@@ -174,7 +186,6 @@ export class GameEngine {
         });
     }
     
-    // ⭐ SPAWN TÁVOLSÁGOK OPTIMALIZÁLÁSA
     spawnNewCar() {
         const now = Date.now();
         
@@ -191,16 +202,15 @@ export class GameEngine {
             return;
         }
         
-        // ⭐ OPTIMALIZÁLT SPAWN POZÍCIÓK - KÖZELI AUTÓK ELKERÜLÉSE
         const spawnPositions = [
-            { z: 1200, offset: -0.6 }, // Közeli bal sáv
-            { z: 1500, offset: 0.0 },  // Közeli közép
-            { z: 1800, offset: 0.6 },  // Közeli jobb sáv
-            { z: 2500, offset: -0.3 }, // Közepes bal
-            { z: 3000, offset: 0.3 },  // Közepes jobb
-            { z: 4000, offset: 0.0 },  // Távoli közép
-            { z: 5000, offset: -0.6 }, // Nagyon távoli bal
-            { z: 5500, offset: 0.6 }   // Nagyon távoli jobb
+            { z: 1200, offset: -0.6 },
+            { z: 1500, offset: 0.0 },
+            { z: 1800, offset: 0.6 },
+            { z: 2500, offset: -0.3 },
+            { z: 3000, offset: 0.3 },
+            { z: 4000, offset: 0.0 },
+            { z: 5000, offset: -0.6 },
+            { z: 5500, offset: 0.6 }
         ];
         
         let safePosition = null;
@@ -240,7 +250,7 @@ export class GameEngine {
     }
     
     isPositionSafe(z, offset) {
-        const minDistance = 700; // ⭐ NAGYOBB MINIMUM TÁVOLSÁG
+        const minDistance = 700;
         const minOffsetDistance = 0.4;
         
         for (const car of this.game.cars) {
@@ -290,6 +300,10 @@ export class GameEngine {
         this.game.cars = [];
         this.game.currentGear = 1;
         this.game.actualRPM = 800;
+        
+        // ⭐ MINI TÉRKÉP RESET
+        this.miniMap.updatePlayerPosition(0, this.game.trackLength);
+        
         console.log('🔄 Race restarted!');
     }
 }
