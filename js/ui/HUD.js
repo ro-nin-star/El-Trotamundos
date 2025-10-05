@@ -14,7 +14,6 @@ export class HUD {
         this.dashboard.setCanvas(canvas, ctx);
     }
     
-    // ⭐ HIÁNYZÓ setMobile METÓDUS HOZZÁADÁSA
     setMobile(isMobile) {
         this.isMobile = isMobile;
     }
@@ -22,53 +21,43 @@ export class HUD {
     render(gameEngine) {
         const game = gameEngine.game;
         
+        // ⭐ BAL FELSŐ SAROK SEBESSÉGSZÁMLÁLÓ ELTÁVOLÍTVA
+        // Csak a jobb oldali analog dashboard és egyéb információk maradnak
+        
         this.ctx.fillStyle = 'white';
         this.ctx.font = 'bold 18px Arial';
         this.ctx.strokeStyle = 'black';
         this.ctx.lineWidth = 3;
         
-        const speedKmh = Math.floor((game.speed / game.maxSpeed) * 300);
-        
-        // Sebesség
-        this.ctx.strokeText(`${speedKmh} KM/H`, 20, 40);
-        this.ctx.fillText(`${speedKmh} KM/H`, 20, 40);
-        
-        // Sebesség bar
-        const barWidth = 200;
+        // ⭐ NITRO BAR (bal alsó sarok helyett jobb felső)
+        const nitroBarX = this.isMobile ? this.canvas.width - 220 : this.canvas.width - 250;
+        const nitroBarY = 20;
+        const barWidth = this.isMobile ? 150 : 200;
         const barHeight = 20;
-        const barX = 20;
-        const barY = 50;
         
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        this.ctx.fillRect(barX - 2, barY - 2, barWidth + 4, barHeight + 4);
-        
-        const speedPercent = game.speed / game.maxSpeed;
-        this.ctx.fillStyle = speedPercent > 0.8 ? '#FF4444' : 
-                           speedPercent > 0.6 ? '#FFAA00' : '#44FF44';
-        this.ctx.fillRect(barX, barY, barWidth * speedPercent, barHeight);
-        
-        // Nitro
         this.ctx.fillStyle = 'white';
         this.ctx.font = '14px Arial';
-        this.ctx.strokeText('NITRO', 20, 90);
-        this.ctx.fillText('NITRO', 20, 90);
+        this.ctx.strokeText('NITRO', nitroBarX, nitroBarY);
+        this.ctx.fillText('NITRO', nitroBarX, nitroBarY);
         
-        const nitroBarY = 95;
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        this.ctx.fillRect(barX - 2, nitroBarY - 2, barWidth + 4, barHeight + 4);
+        this.ctx.fillRect(nitroBarX - 2, nitroBarY + 5 - 2, barWidth + 4, barHeight + 4);
         
         const nitroPercent = game.nitroAmount / 100;
         this.ctx.fillStyle = nitroPercent > 0.5 ? '#00FFFF' : 
                             nitroPercent > 0.2 ? '#FFFF00' : '#FF4444';
-        this.ctx.fillRect(barX, nitroBarY, barWidth * nitroPercent, barHeight);
+        this.ctx.fillRect(nitroBarX, nitroBarY + 5, barWidth * nitroPercent, barHeight);
         
-        // Távolság a célig
+        // ⭐ TÁVOLSÁG A CÉLIG (középen felül)
         const distanceToFinish = Math.max(0, (game.trackLength - game.position) / 1000);
         this.ctx.fillStyle = 'white';
-        this.ctx.strokeText(`CÉL: ${distanceToFinish.toFixed(1)} KM`, 20, 130);
-        this.ctx.fillText(`CÉL: ${distanceToFinish.toFixed(1)} KM`, 20, 130);
+        this.ctx.font = this.isMobile ? 'bold 16px Arial' : 'bold 20px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.strokeText(`CÉL: ${distanceToFinish.toFixed(1)} KM`, this.canvas.width / 2, 30);
+        this.ctx.fillText(`CÉL: ${distanceToFinish.toFixed(1)} KM`, this.canvas.width / 2, 30);
+        this.ctx.textAlign = 'left';
         
-        // ⭐ NITRO JELZÉS (JAVÍTOTT)
+        // ⭐ NITRO JELZÉS
         if (game.nitroMode) {
             this.ctx.fillStyle = '#00FFFF';
             this.ctx.font = 'bold 20px Arial';
@@ -88,19 +77,20 @@ export class HUD {
             }
         }
         
-        // Fokozat
+        // ⭐ FOKOZAT (jobb felső sarok)
         this.ctx.fillStyle = '#00FFFF';
         this.ctx.font = 'bold 16px Arial';
-        const gearX = this.isMobile ? this.canvas.width - 150 : this.canvas.width - 350;
-        this.ctx.strokeText(`${game.currentGear}. GEAR`, gearX, 40);
-        this.ctx.fillText(`${game.currentGear}. GEAR`, gearX, 40);
+        const gearX = this.canvas.width - 80;
+        this.ctx.strokeText(`${game.currentGear}. GEAR`, gearX, 60);
+        this.ctx.fillText(`${game.currentGear}. GEAR`, gearX, 60);
         
         // ⭐ ANALOG MŰSZERFAL (CSAK DESKTOP-ON)
         if (!this.isMobile) {
+            const speedKmh = Math.floor((game.speed / game.maxSpeed) * 300);
             this.dashboard.render(speedKmh, game.currentGear, game.actualRPM);
         }
         
-        // ⭐ MOBIL INSTRUKCIÓK
+        // ⭐ MOBIL INSTRUKCIÓK (jobb alsó sarok)
         if (this.isMobile) {
             const infoWidth = 240;
             const infoHeight = 90;
