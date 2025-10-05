@@ -39,8 +39,8 @@ export class ScreenManager {
         this.ctx.fillText('RACING', this.canvas.width / 2, this.isMobile ? 150 : 200);
         
         this.ctx.fillStyle = '#FF4444';
-        this.ctx.strokeText('LOTUS', this.canvas.width / 2, this.isMobile ? 220 : 300);
-        this.ctx.fillText('LOTUS', this.canvas.width / 2, this.isMobile ? 220 : 300);
+        this.ctx.strokeText('GT', this.canvas.width / 2, this.isMobile ? 220 : 300);
+        this.ctx.fillText('GT', this.canvas.width / 2, this.isMobile ? 220 : 300);
         
         // Loading szöveg
         this.ctx.fillStyle = '#FFFFFF';
@@ -112,8 +112,8 @@ export class ScreenManager {
         this.ctx.textAlign = 'center';
         this.ctx.strokeStyle = '#000000';
         this.ctx.lineWidth = 3;
-        this.ctx.strokeText('RACSING GT', this.canvas.width / 2, boxY + (this.isMobile ? 60 : 80));
-        this.ctx.fillText('RACSING GT', this.canvas.width / 2, boxY + (this.isMobile ? 60 : 80));
+        this.ctx.strokeText('RACSING 86', this.canvas.width / 2, boxY + (this.isMobile ? 60 : 80));
+        this.ctx.fillText('RACSING 86', this.canvas.width / 2, boxY + (this.isMobile ? 60 : 80));
         
         // Irányítás
         this.ctx.fillStyle = '#FFFFFF';
