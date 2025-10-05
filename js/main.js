@@ -19,7 +19,8 @@ class OutRunRacing {
         this.gameEngine = new GameEngine();
         this.renderer = new Renderer();
         this.audioManager = new AudioManager();
-        
+        this.mapImagePath = 'assets/map-baz.png'; // Példa térkép
+
         // ⭐ KORMÁNYOS MOBIL VEZÉRLÉS
         this.mobileControls = {
             steeringAngle: 0,      // Kormány elfordulása (-45° és +45° között)
@@ -45,7 +46,7 @@ class OutRunRacing {
     }
     
     async init() {
-        console.log('🏎️ OutRun Racing inicializálása...');
+   console.log('🏎️ OutRun Racing inicializálása...');
         
         this.createCanvas();
         this.gameLoop();
@@ -56,7 +57,12 @@ class OutRunRacing {
         this.audioManager.setMobile(this.isMobile);
         this.audioManager.init();
         
-        this.gameEngine.buildTrack(this.assetLoader);
+        // ⭐ TÉRKÉP BEÁLLÍTÁSA A PÁLYA ÉPÍTÉS ELŐTT
+        if (this.mapImagePath) {
+            this.gameEngine.setMapImage(this.mapImagePath);
+        }
+        
+        await this.gameEngine.buildTrack(this.assetLoader);
         this.inputManager.setupControls(this);
         this.audioManager.createMuteButton();
         
@@ -67,7 +73,6 @@ class OutRunRacing {
         this.gameState.current = 'INTRO';
         console.log('✅ Játék betöltve!');
     }
-    
     createCanvas() {
         this.canvas = document.createElement('canvas');
         

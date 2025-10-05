@@ -32,16 +32,26 @@ export class GameEngine {
             road: [],
             cars: [],
             lastCarSpawn: 0,
-            carSpawnDelay: 2000
+            carSpawnDelay: 2000,
+            mapImageSrc: null // ⭐ TÉRKÉP KÉP ÚTVONAL
         };
     }
     
-    buildTrack(assetLoader) {
-        this.assetLoader = assetLoader;
-        this.trackBuilder.buildTrack(this.game, assetLoader);
+    // ⭐ TÉRKÉP BEÁLLÍTÁSA
+    setMapImage(mapImageSrc) {
+        this.game.mapImageSrc = mapImageSrc;
+        console.log(`🗺️ Térkép beállítva: ${mapImageSrc}`);
     }
     
-    update(dt, gameState, inputManager, audioManager) {
+    async buildTrack(assetLoader) {
+        this.assetLoader = assetLoader;
+        
+        // ⭐ TÉRKÉP ALAPÚ PÁLYA ÉPÍTÉS
+        await this.trackBuilder.buildTrack(this.game, assetLoader, this.game.mapImageSrc);
+    }
+    
+    
+  update(dt, gameState, inputManager, audioManager) {
         if (gameState.current !== 'PLAYING') return;
         
         this.carPhysics.update(dt, this.game, inputManager);
@@ -65,7 +75,6 @@ export class GameEngine {
             }
         }
     }
-    
     updateGearAndRPM(dt) {
         const speedKmh = Math.floor((this.game.speed / this.game.maxSpeed) * 300);
         let newGear = 1;
