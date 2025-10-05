@@ -1,6 +1,6 @@
 import { CarPhysics } from '../physics/CarPhysics.js';
 import { TrackBuilder } from '../physics/TrackBuilder.js';
-import { MiniMap } from '../ui/Minimap.js'; 
+import { MiniMap } from '../ui/Minimap.js';
 
 export class GameEngine {
     constructor() {
@@ -86,7 +86,6 @@ export class GameEngine {
             }
         }
     }
-    
     updateGearAndRPM(dt) {
         const speedKmh = Math.floor((this.game.speed / this.game.maxSpeed) * 300);
         let newGear = 1;
@@ -160,7 +159,7 @@ export class GameEngine {
     }
     
     avoidCarCollisions(currentCar, currentIndex) {
-        const safeDistance = 400;
+        const safeDistance = 400; // ⭐ NAGYOBB BIZTONSÁGOS TÁVOLSÁG
         const sideDistance = 0.3;
         
         this.game.cars.forEach((otherCar, otherIndex) => {
@@ -186,6 +185,7 @@ export class GameEngine {
         });
     }
     
+    // ⭐ SPAWN TÁVOLSÁGOK OPTIMALIZÁLÁSA
     spawnNewCar() {
         const now = Date.now();
         
@@ -202,15 +202,16 @@ export class GameEngine {
             return;
         }
         
+        // ⭐ OPTIMALIZÁLT SPAWN POZÍCIÓK - KÖZELI AUTÓK ELKERÜLÉSE
         const spawnPositions = [
-            { z: 1200, offset: -0.6 },
-            { z: 1500, offset: 0.0 },
-            { z: 1800, offset: 0.6 },
-            { z: 2500, offset: -0.3 },
-            { z: 3000, offset: 0.3 },
-            { z: 4000, offset: 0.0 },
-            { z: 5000, offset: -0.6 },
-            { z: 5500, offset: 0.6 }
+            { z: 1200, offset: -0.6 }, // Közeli bal sáv
+            { z: 1500, offset: 0.0 },  // Közeli közép
+            { z: 1800, offset: 0.6 },  // Közeli jobb sáv
+            { z: 2500, offset: -0.3 }, // Közepes bal
+            { z: 3000, offset: 0.3 },  // Közepes jobb
+            { z: 4000, offset: 0.0 },  // Távoli közép
+            { z: 5000, offset: -0.6 }, // Nagyon távoli bal
+            { z: 5500, offset: 0.6 }   // Nagyon távoli jobb
         ];
         
         let safePosition = null;
@@ -250,7 +251,7 @@ export class GameEngine {
     }
     
     isPositionSafe(z, offset) {
-        const minDistance = 700;
+        const minDistance = 700; // ⭐ NAGYOBB MINIMUM TÁVOLSÁG
         const minOffsetDistance = 0.4;
         
         for (const car of this.game.cars) {
@@ -289,7 +290,7 @@ export class GameEngine {
         }
     }
     
-    restartRace() {
+restartRace() {
         this.game.position = 0;
         this.game.speed = 0;
         this.game.playerX = 0;
