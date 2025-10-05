@@ -17,6 +17,7 @@ export class Renderer {
         this.hud.setCanvas(canvas, ctx);
     }
     
+    // ⭐ HIÁNYZÓ setMobile METÓDUS HOZZÁADÁSA
     setMobile(isMobile) {
         this.isMobile = isMobile;
         this.screenManager.setMobile(isMobile);

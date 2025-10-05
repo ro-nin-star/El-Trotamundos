@@ -17,7 +17,14 @@ export class Dashboard {
         // Dashboard háttér
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
         this.ctx.beginPath();
-        this.ctx.roundRect(centerX - 150, centerY - 100, 300, 180, 15);
+        
+        // ⭐ ROUNDRECT FALLBACK (régebbi böngészőknek)
+        if (this.ctx.roundRect) {
+            this.ctx.roundRect(centerX - 150, centerY - 100, 300, 180, 15);
+        } else {
+            this.ctx.rect(centerX - 150, centerY - 100, 300, 180);
+        }
+        
         this.ctx.fill();
         
         this.ctx.strokeStyle = '#333333';
