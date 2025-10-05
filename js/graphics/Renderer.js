@@ -216,16 +216,17 @@ export class Renderer {
         }
     }
     
+    // ⭐ JAVÍTOTT AUTÓ RENDERELÉS - NAGYOBB LÁTÓTÁVOLSÁG
     renderCars(game) {
         game.cars.forEach(car => {
-            // ⭐ CSAK VALÓDI SPRITE-OKKAL RENDELKEZŐ AUTÓK RENDERELÉSE
-            if (car.z > -1000 && car.z < 4000 && car.sprite && car.sprite instanceof HTMLImageElement) {
+            // ⭐ MEGNÖVELT LÁTÓTÁVOLSÁG: -2000 -> -3000 és 4000 -> 8000
+            if (car.z > -3000 && car.z < 8000 && car.sprite && car.sprite instanceof HTMLImageElement) {
                 this.renderCarAtPosition(car, game);
             }
         });
     }
     
-    // ⭐ JAVÍTOTT AUTÓ RENDERELÉS - VÁLTOZÓ DEKLARÁLÁSI HIBA JAVÍTVA
+    // ⭐ TELJESEN ÚJRAÍRT AUTÓ MÉRETEZÉS - REALISZTIKUS PERSPEKTÍVA
     renderCarAtPosition(car, game) {
         // ⭐ VILÁGKOORDINÁTÁK SZÁMÍTÁSA
         const carWorldZ = game.position + car.z;
@@ -238,40 +239,72 @@ export class Renderer {
         const cameraZ = carWorldZ - game.position;
         
         // ⭐ LÁTHATÓSÁG ELLENŐRZÉS
-        if (cameraZ <= 0.1) return;
+        if (cameraZ <= 0.05) return; // Csökkentett minimum távolság
         
         // ⭐ KÉPERNYŐ KOORDINÁTÁK
         const scale = 0.84 / cameraZ;
         const screenX = (this.canvas.width / 2) + (scale * cameraX * this.canvas.width / 2);
         const screenY = (this.canvas.height / 2) - (scale * cameraY * this.canvas.height / 2);
         
-        // ⭐ MÉRETEZÉS SZÁMÍTÁSA - HELYES SORREND
-        const baseScale = 15.0;
-        const distanceScale = Math.max(0.4, Math.min(4.0, scale * 20));
-        
         // ⭐ SPRITE MÉRET ELLENŐRZÉS
         const spriteWidth = car.sprite.width || 40;
         const spriteHeight = car.sprite.height || 20;
         
-        // ⭐ CÉLMÉRET SZÁMÍTÁSA
-        const destW = spriteWidth * distanceScale * baseScale / 10;
-        const destH = spriteHeight * distanceScale * baseScale / 10;
+        // ⭐ JAVÍTOTT MÉRETEZÉSI ALGORITMUS
+        let finalW, finalH;
         
-        // ⭐ VÉGSŐ MÉRET KORLÁTOZÁSA
-        const finalW = Math.max(20, Math.min(300, destW));
-        const finalH = Math.max(15, Math.min(180, destH));
+        if (car.z > 0) {
+            // ⭐ ELŐTTÜNK LÉVŐ AUTÓK - NAGYOBB MÉRETEZÉS
+            const frontScale = Math.max(0.8, Math.min(6.0, scale * 35)); // Nagyobb szorzó
+            finalW = spriteWidth * frontScale;
+            finalH = spriteHeight * frontScale;
+            
+            // ⭐ MINIMUM MÉRET ELŐTTÜNK LÉVŐ AUTÓKHOZ
+            finalW = Math.max(40, Math.min(400, finalW));
+            finalH = Math.max(25, Math.min(250, finalH));
+            
+        } else {
+            // ⭐ MÖGÖTTÜNK LÉVŐ AUTÓK - NORMÁL MÉRETEZÉS
+            const backScale = Math.max(0.3, Math.min(4.0, scale * 25));
+            finalW = spriteWidth * backScale;
+            finalH = spriteHeight * backScale;
+            
+            finalW = Math.max(15, Math.min(300, finalW));
+            finalH = Math.max(10, Math.min(180, finalH));
+        }
         
         // ⭐ POZÍCIÓ SZÁMÍTÁSA
         const destX = screenX - (finalW / 2);
         const destY = screenY - finalH;
         
+        // ⭐ TÁVOLSÁG ALAPÚ ÁTLÁTSZÓSÁG
+        let alpha = 1.0;
+        if (car.z > 4000) {
+            // Távoli autók halványítása
+            alpha = Math.max(0.3, 1.0 - ((car.z - 4000) / 4000));
+        }
+        
+        // ⭐ KÉPERNYŐN KÍVÜLI AUTÓK KISZŰRÉSE
+        if (destX + finalW < 0 || destX > this.canvas.width || 
+            destY + finalH < 0 || destY > this.canvas.height) {
+            return;
+        }
+        
         // ⭐ RENDERELÉS
         this.ctx.save();
-        this.ctx.globalAlpha = 1.0;
+        this.ctx.globalAlpha = alpha;
         this.ctx.imageSmoothingEnabled = false;
         
         try {
             this.ctx.drawImage(car.sprite, destX, destY, finalW, finalH);
+            
+            // ⭐ DEBUG INFO (opcionális - törölhető)
+            if (false) { // true-ra állítva megjeleníti a debug infót
+                this.ctx.fillStyle = 'white';
+                this.ctx.font = '10px Arial';
+                this.ctx.fillText(`Z:${Math.round(car.z)}`, destX, destY - 5);
+            }
+            
         } catch (error) {
             console.warn('⚠️ Autó renderelési hiba:', error);
         }

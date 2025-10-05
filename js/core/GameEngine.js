@@ -111,7 +111,6 @@ export class GameEngine {
         this.game.position += this.game.speed * dt * 50;
     }
     
-    // ⭐ JAVÍTOTT AUTÓ FRISSÍTÉS - ÜTKÖZÉSELKERÜLÉSSEL
     updateCars(dt) {
         this.game.cars.forEach((car, index) => {
             const carForwardMovement = car.speed * dt * 50;
@@ -119,7 +118,6 @@ export class GameEngine {
             
             car.z += carForwardMovement - playerEffect;
             
-            // ⭐ PÁLYA KÖVETÉS
             if (car.followsTrack) {
                 const carPosition = this.game.position + car.z;
                 const carSegment = this.findSegment(carPosition);
@@ -131,21 +129,19 @@ export class GameEngine {
                 }
             }
             
-            // ⭐ ÜTKÖZÉSELKERÜLÉS - AUTÓK EGYMÁS KÖZÖTT
             this.avoidCarCollisions(car, index);
             
-            // Autó eltávolítása ha túl messze van
-            if (car.z > 5000 || car.z < -2000) {
+            // ⭐ MEGNÖVELT ELTÁVOLÍTÁSI TÁVOLSÁG
+            if (car.z > 8000 || car.z < -3000) {
                 this.game.cars.splice(index, 1);
                 return;
             }
         });
     }
     
-    // ⭐ ÜTKÖZÉSELKERÜLŐ RENDSZER
     avoidCarCollisions(currentCar, currentIndex) {
-        const safeDistance = 300; // Biztonságos távolság
-        const sideDistance = 0.3;  // Oldalsó biztonságos távolság
+        const safeDistance = 300;
+        const sideDistance = 0.3;
         
         this.game.cars.forEach((otherCar, otherIndex) => {
             if (currentIndex === otherIndex) return;
@@ -153,31 +149,24 @@ export class GameEngine {
             const zDistance = Math.abs(currentCar.z - otherCar.z);
             const offsetDistance = Math.abs(currentCar.offset - otherCar.offset);
             
-            // Ha túl közel vannak egymáshoz
             if (zDistance < safeDistance && offsetDistance < sideDistance) {
                 
-                // ⭐ OLDALSÓ KITÉRÉS
                 if (currentCar.offset > otherCar.offset) {
-                    // Jobbra térjen ki
                     currentCar.offset = Math.min(0.8, currentCar.offset + 0.01);
                 } else {
-                    // Balra térjen ki
                     currentCar.offset = Math.max(-0.8, currentCar.offset - 0.01);
                 }
                 
-                // ⭐ SEBESSÉGKÜLÖNBSÉG
                 if (currentCar.z > otherCar.z) {
-                    // Ha előrébb van, lassítson egy kicsit
                     currentCar.speed = Math.max(60, currentCar.speed - 5);
                 } else {
-                    // Ha hátrébb van, gyorsítson egy kicsit
                     currentCar.speed = Math.min(120, currentCar.speed + 5);
                 }
             }
         });
     }
     
-    // ⭐ JAVÍTOTT AUTÓ SPAWN - CSAK KÉPES AUTÓK
+    // ⭐ JAVÍTOTT SPAWN - NAGYOBB TÁVOLSÁGOK
     spawnNewCar() {
         const now = Date.now();
         
@@ -185,24 +174,25 @@ export class GameEngine {
             return;
         }
         
-        if (this.game.cars.length >= 4) { // Kevesebb autó = kevesebb ütközés
+        if (this.game.cars.length >= 6) { // Több autó a nagyobb látótávolság miatt
             return;
         }
         
-        // ⭐ ELLENŐRZÉS: VANNAK-E BETÖLTÖTT ELLENFÉL SPRITE-OK
         if (!this.assetLoader || !this.assetLoader.hasEnemySprites()) {
             console.warn('⚠️ Nincs betöltött ellenfél sprite, autó spawn kihagyva');
             return;
         }
         
-        // ⭐ BIZTONSÁGOS SPAWN POZÍCIÓK
+        // ⭐ MEGNÖVELT SPAWN TÁVOLSÁGOK
         const spawnPositions = [
-            { z: 1800, offset: -0.6 }, // Bal sáv
-            { z: 2200, offset: 0.0 },  // Közép
-            { z: 2000, offset: 0.6 },  // Jobb sáv
+            { z: 2500, offset: -0.6 }, // Bal sáv
+            { z: 3000, offset: 0.0 },  // Közép
+            { z: 2800, offset: 0.6 },  // Jobb sáv
+            { z: 4000, offset: -0.3 }, // Távoli bal
+            { z: 4500, offset: 0.3 },  // Távoli jobb
+            { z: 5000, offset: 0.0 }   // Nagyon távoli
         ];
         
-        // ⭐ SZABAD POZÍCIÓ KERESÉSE
         let safePosition = null;
         for (const pos of spawnPositions) {
             if (this.isPositionSafe(pos.z, pos.offset)) {
@@ -216,7 +206,6 @@ export class GameEngine {
             return;
         }
         
-        // ⭐ SPRITE BETÖLTÉS
         const enemySprite = this.assetLoader.getRandomEnemySprite();
         if (!enemySprite) {
             console.warn('⚠️ Nem sikerült ellenfél sprite betöltése');
@@ -224,9 +213,9 @@ export class GameEngine {
         }
         
         const newCar = {
-            z: safePosition.z + Math.random() * 200,
+            z: safePosition.z + Math.random() * 300, // Nagyobb variáció
             offset: safePosition.offset + (Math.random() - 0.5) * 0.1,
-            sprite: enemySprite, // ⭐ CSAK BETÖLTÖTT KÉPEK
+            sprite: enemySprite,
             speed: 70 + Math.random() * 30,
             width: 60,
             height: 30,
@@ -235,26 +224,25 @@ export class GameEngine {
         
         this.game.cars.push(newCar);
         this.game.lastCarSpawn = now;
-        this.game.carSpawnDelay = 2000 + Math.random() * 3000; // Ritkább spawn
+        this.game.carSpawnDelay = 1500 + Math.random() * 2500;
         
-        console.log('✅ Új ellenfél autó spawn-olva, pozíció:', safePosition);
+        console.log('✅ Új ellenfél autó spawn-olva, távolság:', Math.round(safePosition.z));
     }
     
-    // ⭐ BIZTONSÁGOS POZÍCIÓ ELLENŐRZÉS
     isPositionSafe(z, offset) {
-        const minDistance = 500; // Minimum távolság más autóktól
-        const minOffsetDistance = 0.4; // Minimum oldalsó távolság
+        const minDistance = 600; // Nagyobb minimum távolság
+        const minOffsetDistance = 0.4;
         
         for (const car of this.game.cars) {
             const zDistance = Math.abs(car.z - z);
             const offsetDistance = Math.abs(car.offset - offset);
             
             if (zDistance < minDistance && offsetDistance < minOffsetDistance) {
-                return false; // Nem biztonságos
+                return false;
             }
         }
         
-        return true; // Biztonságos pozíció
+        return true;
     }
     
     findSegment(z) {
