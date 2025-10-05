@@ -1,12 +1,21 @@
+import { Dashboard } from './Dashboard.js';
+
 export class HUD {
     constructor() {
         this.canvas = null;
         this.ctx = null;
+        this.dashboard = new Dashboard();
+        this.isMobile = false;
     }
     
     setCanvas(canvas, ctx) {
         this.canvas = canvas;
         this.ctx = ctx;
+        this.dashboard.setCanvas(canvas, ctx);
+    }
+    
+    setMobile(isMobile) {
+        this.isMobile = isMobile;
     }
     
     render(gameEngine) {
@@ -58,12 +67,20 @@ export class HUD {
         this.ctx.strokeText(`CÉL: ${distanceToFinish.toFixed(1)} KM`, 20, 130);
         this.ctx.fillText(`CÉL: ${distanceToFinish.toFixed(1)} KM`, 20, 130);
         
-        // Nitro jelzés
+        // ⭐ NITRO JELZÉS (JAVÍTOTT)
         if (game.nitroMode) {
             this.ctx.fillStyle = '#00FFFF';
-            this.ctx.font = 'bold 16px Arial';
-            this.ctx.strokeText(`NITRO!`, this.canvas.width - 350, 60);
-            this.ctx.fillText(`NITRO!`, this.canvas.width - 350, 60);
+            this.ctx.font = 'bold 20px Arial';
+            this.ctx.strokeStyle = '#000000';
+            this.ctx.lineWidth = 2;
+            this.ctx.strokeText(`🚀 NITRO BOOST! 🚀`, this.canvas.width / 2 - 120, 60);
+            this.ctx.fillText(`🚀 NITRO BOOST! 🚀`, this.canvas.width / 2 - 120, 60);
+            
+            // Villogó effekt
+            if (Math.floor(Date.now() / 100) % 2) {
+                this.ctx.fillStyle = 'rgba(0, 255, 255, 0.3)';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            }
         }
         
         // Fokozat
@@ -71,5 +88,23 @@ export class HUD {
         this.ctx.font = 'bold 16px Arial';
         this.ctx.strokeText(`${game.currentGear}. GEAR`, this.canvas.width - 350, 40);
         this.ctx.fillText(`${game.currentGear}. GEAR`, this.canvas.width - 350, 40);
+        
+        // ⭐ ANALOG MŰSZERFAL (CSAK DESKTOP-ON)
+        if (!this.isMobile) {
+            this.dashboard.render(speedKmh, game.currentGear, game.actualRPM);
+        }
+        
+        // ⭐ MOBIL INSTRUKCIÓK
+        if (this.isMobile) {
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillRect(this.canvas.width - 250, this.canvas.height - 100, 240, 90);
+            
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.font = '12px Arial';
+            this.ctx.fillText('📱 Mobil vezérlők alul', this.canvas.width - 240, this.canvas.height - 80);
+            this.ctx.fillText('🚀 Piros gomb = Nitro', this.canvas.width - 240, this.canvas.height - 60);
+            this.ctx.fillText('⬆️ Kék gomb = Gáz', this.canvas.width - 240, this.canvas.height - 40);
+            this.ctx.fillText('⬅️➡️ Kormányzás', this.canvas.width - 240, this.canvas.height - 20);
+        }
     }
 }

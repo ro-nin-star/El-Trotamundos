@@ -12,6 +12,9 @@ class OutRunRacing {
         this.height = 600;
         this.scale = 2;
         
+        // ⭐ MOBIL DETEKTÁLÁS
+        this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
         // Komponensek
         this.assetLoader = new AssetLoader();
         this.inputManager = new InputManager();
@@ -30,6 +33,7 @@ class OutRunRacing {
     
     async init() {
         console.log('🏎️ OutRun Racing inicializálása...');
+        console.log('📱 Mobil eszköz:', this.isMobile);
         
         this.createCanvas();
         this.gameLoop();
@@ -37,9 +41,14 @@ class OutRunRacing {
         await this.simulateLoading();
         await this.assetLoader.loadAssets();
         this.audioManager.init();
-        this.gameEngine.buildTrack();
+        this.gameEngine.buildTrack(this.assetLoader); // ⭐ AssetLoader átadása
         this.inputManager.setupControls(this);
         this.audioManager.createMuteButton();
+        
+        // ⭐ MOBIL VEZÉRLŐK
+        if (this.isMobile) {
+            this.createMobileControls();
+        }
         
         this.gameState.current = 'INTRO';
         console.log('✅ Játék betöltve!');
@@ -47,9 +56,26 @@ class OutRunRacing {
     
     createCanvas() {
         this.canvas = document.createElement('canvas');
+        
+        // ⭐ MOBIL OPTIMALIZÁCIÓ
+        if (this.isMobile) {
+            this.width = 600;
+            this.height = 400;
+            this.scale = 1.5;
+        }
+        
         this.canvas.width = this.width * this.scale;
         this.canvas.height = this.height * this.scale;
-        this.canvas.style.imageRendering = 'pixelated';
+        this.canvas.style.cssText = `
+            image-rendering: pixelated;
+            width: 100%;
+            max-width: 800px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            touch-action: none;
+            background: #000;
+        `;
         
         this.ctx = this.canvas.getContext('2d');
         this.ctx.imageSmoothingEnabled = false;
@@ -58,6 +84,102 @@ class OutRunRacing {
         
         // Komponenseknek átadjuk a canvas-t
         this.renderer.setCanvas(this.canvas, this.ctx);
+        this.renderer.setMobile(this.isMobile); // ⭐ Mobil flag átadása
+    }
+    
+    // ⭐ MOBIL VEZÉRLŐK LÉTREHOZÁSA
+    createMobileControls() {
+        console.log('📱 Mobil vezérlők létrehozása...');
+        
+        const mobileControls = document.createElement('div');
+        mobileControls.id = 'mobileControls';
+        mobileControls.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 1000;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        `;
+        
+        // Vezérlő gombok
+        const steerLeft = this.createMobileButton('⬅️', 'BALRA');
+        const steerRight = this.createMobileButton('➡️', 'JOBBRA');
+        const accelerate = this.createMobileButton('⬆️', 'GÁZ');
+        const brake = this.createMobileButton('⬇️', 'FÉK');
+        const nitro = this.createMobileButton('🚀', 'NITRO');
+        nitro.style.backgroundColor = '#FF4444';
+        
+        mobileControls.appendChild(steerLeft);
+        mobileControls.appendChild(brake);
+        mobileControls.appendChild(accelerate);
+        mobileControls.appendChild(steerRight);
+        mobileControls.appendChild(nitro);
+        
+        // Event listenerek
+        this.setupMobileButton(steerLeft, 'ArrowLeft');
+        this.setupMobileButton(steerRight, 'ArrowRight');
+        this.setupMobileButton(accelerate, 'ArrowUp');
+        this.setupMobileButton(brake, 'ArrowDown');
+        this.setupMobileButton(nitro, 'Space');
+        
+        document.body.appendChild(mobileControls);
+        
+        console.log('✅ Mobil vezérlők létrehozva');
+    }
+    
+    createMobileButton(emoji, text) {
+        const button = document.createElement('div');
+        button.innerHTML = `<div style="font-size: 24px;">${emoji}</div><div style="font-size: 10px;">${text}</div>`;
+        button.style.cssText = `
+            width: 60px;
+            height: 60px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #00FFFF;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-family: Arial, sans-serif;
+            cursor: pointer;
+            transition: all 0.1s;
+            touch-action: manipulation;
+        `;
+        
+        return button;
+    }
+    
+    setupMobileButton(button, keyCode) {
+        const onStart = (e) => {
+            e.preventDefault();
+            this.inputManager.keys[keyCode] = true;
+            button.style.backgroundColor = 'rgba(0, 255, 255, 0.5)';
+            button.style.transform = 'scale(0.95)';
+            
+            if (navigator.vibrate) {
+                navigator.vibrate(50);
+            }
+        };
+        
+        const onEnd = (e) => {
+            e.preventDefault();
+            this.inputManager.keys[keyCode] = false;
+            button.style.backgroundColor = keyCode === 'Space' ? '#FF4444' : 'rgba(0, 0, 0, 0.7)';
+            button.style.transform = 'scale(1)';
+        };
+        
+        button.addEventListener('touchstart', onStart, { passive: false });
+        button.addEventListener('touchend', onEnd, { passive: false });
+        button.addEventListener('touchcancel', onEnd, { passive: false });
+        button.addEventListener('mousedown', onStart);
+        button.addEventListener('mouseup', onEnd);
+        button.addEventListener('mouseleave', onEnd);
     }
     
     async simulateLoading() {

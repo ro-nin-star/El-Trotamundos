@@ -9,7 +9,7 @@ export class GameEngine {
         this.game = {
             playerX: 0,
             speed: 0,
-            maxSpeed: 350,
+            maxSpeed: 300, // ⭐ ALAPÉRTELMEZETT MAX SEBESSÉG
             nitroMode: false,
             nitroAmount: 100,
             finished: false,
@@ -31,12 +31,12 @@ export class GameEngine {
             road: [],
             cars: [],
             lastCarSpawn: 0,
-            carSpawnDelay: 5000
+            carSpawnDelay: 3000 // ⭐ GYORSABB AUTÓ SPAWN
         };
     }
     
-    buildTrack() {
-        this.trackBuilder.buildTrack(this.game);
+    buildTrack(assetLoader) {
+        this.trackBuilder.buildTrack(this.game, assetLoader); // ⭐ AssetLoader átadása
     }
     
     update(dt, gameState, inputManager, audioManager) {
@@ -52,6 +52,12 @@ export class GameEngine {
         
         if (this.game.position >= this.game.trackLength - 1000) {
             this.handleFinish(audioManager);
+        }
+        
+        // ⭐ RESTART KEZELÉS
+        if (this.game.finished && inputManager.isPressed('KeyR')) {
+            this.restartRace();
+            audioManager.startBackgroundMusic();
         }
     }
     
@@ -101,11 +107,87 @@ export class GameEngine {
     }
     
     updateCars(dt) {
-        // Autók frissítése logika
+        this.game.cars.forEach((car, index) => {
+            const carForwardMovement = car.speed * dt * 3;
+            const playerEffect = this.game.speed * dt * 3;
+            
+            car.z += carForwardMovement - playerEffect;
+            
+            if (car.followsTrack) {
+                const carPosition = this.game.position + car.z;
+                const carSegment = this.findSegment(carPosition);
+                
+                if (carSegment && Math.abs(carSegment.curve) > 0) {
+                    const curveEffect = carSegment.curve * 0.0003;
+                    car.offset -= curveEffect;
+                    car.offset = Math.max(-0.8, Math.min(0.8, car.offset));
+                }
+            }
+            
+            if (car.z > 3500 || car.z < -1500) {
+                this.game.cars.splice(index, 1);
+                console.log('Autó eltávolítva, maradék:', this.game.cars.length);
+                return;
+            }
+        });
     }
     
     spawnNewCar() {
-        // Új autó generálás logika
+        const now = Date.now();
+        
+        if (now - this.game.lastCarSpawn < this.game.carSpawnDelay) {
+            return;
+        }
+        
+        if (this.game.cars.length >= 3) { // ⭐ TÖBB AUTÓ ENGEDÉLYEZÉSE
+            return;
+        }
+        
+        const newCar = {
+            z: 1200 + Math.random() * 800,
+            offset: (Math.random() - 0.5) * 0.8,
+            sprite: this.getRandomEnemySprite(),
+            speed: 60 + Math.random() * 30,
+            width: 60,
+            height: 30,
+            followsTrack: true
+        };
+        
+        this.game.cars.push(newCar);
+        this.game.lastCarSpawn = now;
+        
+        console.log(`Új autó spawned: ${this.game.cars.length} autó a pályán`);
+    }
+    
+    getRandomEnemySprite() {
+        // Fallback sprite ha nincs betöltve
+        const canvas = document.createElement('canvas');
+        canvas.width = 40;
+        canvas.height = 20;
+        const ctx = canvas.getContext('2d');
+        
+        const colors = ['#0000FF', '#00FF00', '#FF00FF', '#FFFF00'];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        
+        ctx.fillStyle = color;
+        ctx.fillRect(8, 2, 24, 16);
+        ctx.fillStyle = '#87CEEB';
+        ctx.fillRect(10, 4, 20, 6);
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(4, 2, 6, 4);
+        ctx.fillRect(30, 2, 6, 4);
+        ctx.fillRect(4, 14, 6, 4);
+        ctx.fillRect(30, 14, 6, 4);
+        
+        return canvas;
+    }
+    
+    findSegment(z) {
+        const segmentIndex = Math.floor(z / this.game.segmentLength);
+        if (segmentIndex >= 0 && segmentIndex < this.game.road.length) {
+            return this.game.road[segmentIndex];
+        }
+        return this.game.road[0];
     }
     
     handleFinish(audioManager) {
@@ -114,6 +196,7 @@ export class GameEngine {
             this.game.finishTime = Date.now() - this.game.raceStartTime;
             audioManager.stopBackgroundMusic();
             audioManager.playSound('finish');
+            console.log('🏁 FINISH!');
         }
     }
     
@@ -128,5 +211,6 @@ export class GameEngine {
         this.game.cars = [];
         this.game.currentGear = 1;
         this.game.actualRPM = 800;
+        console.log('🔄 Race restarted!');
     }
 }
