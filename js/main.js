@@ -20,18 +20,19 @@ class OutRunRacing {
         this.renderer = new Renderer();
         this.audioManager = new AudioManager();
         
-        // ⭐ MOBIL VEZÉRLÉS ÁLLAPOTOK
+        // ⭐ KORMÁNYOS MOBIL VEZÉRLÉS
         this.mobileControls = {
-            steering: 0,        // -1 (bal) és 1 (jobb) között
+            steeringAngle: 0,      // Kormány elfordulása (-45° és +45° között)
+            steeringInput: 0,      // Tényleges input érték (-1 és 1 között)
             accelerating: false,
             braking: false,
             nitro: false,
-            touchStartX: 0,
-            touchStartY: 0,
-            steeringZone: null,
-            gasZone: null,
-            brakeZone: null,
-            nitroZone: null
+            isDragging: false,
+            lastTouchAngle: 0,
+            steeringWheel: null,
+            gasButton: null,
+            brakeButton: null,
+            nitroButton: null
         };
         
         this.gameState = {
@@ -60,8 +61,7 @@ class OutRunRacing {
         this.audioManager.createMuteButton();
         
         if (this.isMobile) {
-            this.createMobileControls();
-            this.setupMobileTouchHandlers();
+            this.createSteeringControls();
         }
         
         this.gameState.current = 'INTRO';
@@ -99,76 +99,146 @@ class OutRunRacing {
         this.renderer.setMobile(this.isMobile);
     }
     
-    // ⭐ ÚJRAÍRT MOBIL VEZÉRLÉS - AUTÓS JÁTÉKHOZ OPTIMALIZÁLT
-    createMobileControls() {
-        // ⭐ FŐKONTÉNER
+    // ⭐ KORMÁNYOS VEZÉRLÉS LÉTREHOZÁSA
+    createSteeringControls() {
         const controlsContainer = document.createElement('div');
         controlsContainer.style.cssText = `
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            height: 200px;
+            height: 250px;
             z-index: 1000;
             pointer-events: none;
         `;
         
-        // ⭐ KORMÁNY ZÓNA (BAL OLDAL)
-        const steeringZone = document.createElement('div');
-        steeringZone.innerHTML = `
-            <div style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); color: white; font-size: 14px; text-align: center;">
-                🏎️ KORMÁNY
-            </div>
-            <div style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: #aaa; font-size: 12px; text-align: center;">
-                Húzd balra/jobbra
-            </div>
-        `;
-        steeringZone.style.cssText = `
+        // ⭐ KORMÁNYKERÉK KONTÉNER
+        const steeringContainer = document.createElement('div');
+        steeringContainer.style.cssText = `
             position: absolute;
-            left: 0;
-            top: 0;
-            width: 50%;
-            height: 100%;
-            background: linear-gradient(45deg, rgba(0,100,200,0.3), rgba(0,150,255,0.2));
-            border: 2px solid rgba(0,255,255,0.5);
-            border-radius: 15px 0 0 15px;
+            left: 20px;
+            bottom: 20px;
+            width: 150px;
+            height: 150px;
             pointer-events: auto;
+        `;
+        
+        // ⭐ KORMÁNYKERÉK ELEM
+        const steeringWheel = document.createElement('div');
+        steeringWheel.style.cssText = `
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+            border: 3px solid #444;
+            position: relative;
+            cursor: grab;
+            box-shadow: 
+                inset 0 0 20px rgba(0,0,0,0.5),
+                0 5px 15px rgba(0,0,0,0.3);
+            transition: transform 0.1s ease-out;
+        `;
+        
+        // ⭐ KORMÁNY KÜLLŐK
+        const spokes = document.createElement('div');
+        spokes.innerHTML = `
+            <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 60px; background: #666; transform: translate(-50%, -50%) rotate(0deg);"></div>
+            <div style="position: absolute; top: 50%; left: 50%; width: 60px; height: 2px; background: #666; transform: translate(-50%, -50%) rotate(0deg);"></div>
+            <div style="position: absolute; top: 50%; left: 50%; width: 2px; height: 60px; background: #666; transform: translate(-50%, -50%) rotate(90deg);"></div>
+            <div style="position: absolute; top: 50%; left: 50%; width: 60px; height: 2px; background: #666; transform: translate(-50%, -50%) rotate(90deg);"></div>
+        `;
+        steeringWheel.appendChild(spokes);
+        
+        // ⭐ KÖZPONTI RÉSZ
+        const center = document.createElement('div');
+        center.innerHTML = '🏎️';
+        center.style.cssText = `
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            background: #333;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            position: relative;
+            font-size: 16px;
+            border: 2px solid #555;
         `;
+        steeringWheel.appendChild(center);
         
-        // ⭐ GÁZ/FÉK ZÓNA (JOBB OLDAL)
-        const gasZone = document.createElement('div');
-        gasZone.innerHTML = `
-            <div style="display: flex; height: 100%; flex-direction: column;">
-                <div style="flex: 1; display: flex; align-items: center; justify-content: center; background: rgba(0,255,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.3);">
-                    <div style="text-align: center; color: white;">
-                        <div style="font-size: 24px;">⬆️</div>
-                        <div style="font-size: 12px;">GÁZ</div>
-                    </div>
-                </div>
-                <div style="flex: 1; display: flex; align-items: center; justify-content: center; background: rgba(255,0,0,0.2);">
-                    <div style="text-align: center; color: white;">
-                        <div style="font-size: 24px;">⬇️</div>
-                        <div style="font-size: 12px;">FÉK</div>
-                    </div>
-                </div>
-            </div>
-        `;
-        gasZone.style.cssText = `
+        // ⭐ CÍMKE
+        const steeringLabel = document.createElement('div');
+        steeringLabel.textContent = 'KORMÁNY';
+        steeringLabel.style.cssText = `
             position: absolute;
-            right: 0;
-            top: 0;
-            width: 50%;
-            height: 100%;
-            border: 2px solid rgba(0,255,255,0.5);
-            border-radius: 0 15px 15px 0;
-            pointer-events: auto;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 12px;
+            font-family: Arial;
+            text-align: center;
         `;
         
-        // ⭐ NITRO GOMB (KÖZÉP FELÜL)
+        steeringContainer.appendChild(steeringWheel);
+        steeringContainer.appendChild(steeringLabel);
+        
+        // ⭐ GÁZ GOMB
+        const gasButton = document.createElement('div');
+        gasButton.innerHTML = `
+            <div style="font-size: 24px;">⬆️</div>
+            <div style="font-size: 12px;">GÁZ</div>
+        `;
+        gasButton.style.cssText = `
+            position: absolute;
+            right: 20px;
+            bottom: 120px;
+            width: 80px;
+            height: 60px;
+            background: linear-gradient(145deg, #00AA00, #008800);
+            border: 2px solid #00FF00;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-family: Arial;
+            pointer-events: auto;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            cursor: pointer;
+        `;
+        
+        // ⭐ FÉK GOMB
+        const brakeButton = document.createElement('div');
+        brakeButton.innerHTML = `
+            <div style="font-size: 24px;">⬇️</div>
+            <div style="font-size: 12px;">FÉK</div>
+        `;
+        brakeButton.style.cssText = `
+            position: absolute;
+            right: 20px;
+            bottom: 50px;
+            width: 80px;
+            height: 60px;
+            background: linear-gradient(145deg, #AA0000, #880000);
+            border: 2px solid #FF0000;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-family: Arial;
+            pointer-events: auto;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            cursor: pointer;
+        `;
+        
+        // ⭐ NITRO GOMB
         const nitroButton = document.createElement('div');
         nitroButton.innerHTML = `
             <div style="font-size: 20px;">🚀</div>
@@ -176,12 +246,11 @@ class OutRunRacing {
         `;
         nitroButton.style.cssText = `
             position: absolute;
-            top: -60px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80px;
+            right: 120px;
+            bottom: 85px;
+            width: 70px;
             height: 50px;
-            background: linear-gradient(45deg, #FF4444, #FF6666);
+            background: linear-gradient(145deg, #FF4444, #FF6666);
             border: 2px solid #FFFF00;
             border-radius: 25px;
             display: flex;
@@ -192,186 +261,189 @@ class OutRunRacing {
             font-family: Arial;
             pointer-events: auto;
             box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            cursor: pointer;
         `;
         
         // ⭐ REFERENCIÁK MENTÉSE
-        this.mobileControls.steeringZone = steeringZone;
-        this.mobileControls.gasZone = gasZone;
-        this.mobileControls.nitroZone = nitroButton;
+        this.mobileControls.steeringWheel = steeringWheel;
+        this.mobileControls.gasButton = gasButton;
+        this.mobileControls.brakeButton = brakeButton;
+        this.mobileControls.nitroButton = nitroButton;
         
         // ⭐ ÖSSZEÁLLÍTÁS
-        controlsContainer.appendChild(steeringZone);
-        controlsContainer.appendChild(gasZone);
+        controlsContainer.appendChild(steeringContainer);
+        controlsContainer.appendChild(gasButton);
+        controlsContainer.appendChild(brakeButton);
         controlsContainer.appendChild(nitroButton);
         
         document.body.appendChild(controlsContainer);
+        
+        // ⭐ EVENT LISTENER-EK BEÁLLÍTÁSA
+        this.setupSteeringWheelEvents();
+        this.setupButtonEvents();
     }
     
-    // ⭐ TOUCH EVENT KEZELŐK
-    setupMobileTouchHandlers() {
-        // ⭐ KORMÁNY KEZELÉS
-        this.setupSteeringControls();
+    // ⭐ KORMÁNYKERÉK ESEMÉNYEK
+    setupSteeringWheelEvents() {
+        const wheel = this.mobileControls.steeringWheel;
         
-        // ⭐ GÁZ/FÉK KEZELÉS
-        this.setupGasBrakeControls();
-        
-        // ⭐ NITRO KEZELÉS
-        this.setupNitroControls();
-        
-        // ⭐ GLOBÁLIS TOUCH END
-        document.addEventListener('touchend', () => {
-            this.resetMobileControls();
-        });
-        
-        document.addEventListener('touchcancel', () => {
-            this.resetMobileControls();
-        });
-    }
-    
-    // ⭐ KORMÁNY VEZÉRLÉS BEÁLLÍTÁSA
-    setupSteeringControls() {
-        const steeringZone = this.mobileControls.steeringZone;
-        
-        steeringZone.addEventListener('touchstart', (e) => {
+        // ⭐ TOUCH START
+        wheel.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            const touch = e.touches[0];
-            const rect = steeringZone.getBoundingClientRect();
-            this.mobileControls.touchStartX = touch.clientX - rect.left;
-            steeringZone.style.background = 'linear-gradient(45deg, rgba(0,150,255,0.6), rgba(0,200,255,0.4))';
-        });
-        
-        steeringZone.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            const rect = steeringZone.getBoundingClientRect();
-            const currentX = touch.clientX - rect.left;
-            const deltaX = currentX - this.mobileControls.touchStartX;
-            const maxDelta = rect.width / 3; // Érzékenység
+            this.mobileControls.isDragging = true;
+            wheel.style.cursor = 'grabbing';
+            wheel.style.boxShadow = `
+                inset 0 0 20px rgba(0,0,0,0.7),
+                0 2px 8px rgba(0,0,0,0.5)
+            `;
             
-            // ⭐ KORMÁNY ÉRTÉK SZÁMÍTÁSA (-1 és 1 között)
-            this.mobileControls.steering = Math.max(-1, Math.min(1, deltaX / maxDelta));
+            const touch = e.touches[0];
+            const rect = wheel.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            this.mobileControls.lastTouchAngle = Math.atan2(
+                touch.clientY - centerY,
+                touch.clientX - centerX
+            ) * 180 / Math.PI;
+        });
+        
+        // ⭐ TOUCH MOVE - KORMÁNY TEKERÉSE
+        wheel.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!this.mobileControls.isDragging) return;
+            
+            const touch = e.touches[0];
+            const rect = wheel.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            const currentAngle = Math.atan2(
+                touch.clientY - centerY,
+                touch.clientX - centerX
+            ) * 180 / Math.PI;
+            
+            let angleDiff = currentAngle - this.mobileControls.lastTouchAngle;
+            
+            // ⭐ SZÖG NORMALIZÁLÁS
+            if (angleDiff > 180) angleDiff -= 360;
+            if (angleDiff < -180) angleDiff += 360;
+            
+            // ⭐ KORMÁNY ELFORDÍTÁSA
+            this.mobileControls.steeringAngle += angleDiff * 0.5; // Érzékenység
+            this.mobileControls.steeringAngle = Math.max(-45, Math.min(45, this.mobileControls.steeringAngle));
+            
+            // ⭐ INPUT ÉRTÉK SZÁMÍTÁSA
+            this.mobileControls.steeringInput = this.mobileControls.steeringAngle / 45;
+            
+            // ⭐ VIZUÁLIS FRISSÍTÉS
+            wheel.style.transform = `rotate(${this.mobileControls.steeringAngle}deg)`;
             
             // ⭐ INPUT MANAGER FRISSÍTÉSE
-            this.inputManager.keys['ArrowLeft'] = this.mobileControls.steering < -0.1;
-            this.inputManager.keys['ArrowRight'] = this.mobileControls.steering > 0.1;
+            this.inputManager.keys['ArrowLeft'] = this.mobileControls.steeringInput < -0.1;
+            this.inputManager.keys['ArrowRight'] = this.mobileControls.steeringInput > 0.1;
+            
+            this.mobileControls.lastTouchAngle = currentAngle;
         });
         
-        steeringZone.addEventListener('touchend', () => {
-            this.mobileControls.steering = 0;
-            this.inputManager.keys['ArrowLeft'] = false;
-            this.inputManager.keys['ArrowRight'] = false;
-            steeringZone.style.background = 'linear-gradient(45deg, rgba(0,100,200,0.3), rgba(0,150,255,0.2))';
+        // ⭐ TOUCH END
+        wheel.addEventListener('touchend', () => {
+            this.mobileControls.isDragging = false;
+            wheel.style.cursor = 'grab';
+            wheel.style.boxShadow = `
+                inset 0 0 20px rgba(0,0,0,0.5),
+                0 5px 15px rgba(0,0,0,0.3)
+            `;
+            
+            // ⭐ KORMÁNY VISSZATÉRÍTÉSE KÖZÉPRE
+            this.returnSteeringToCenter();
+        });
+        
+        // ⭐ TOUCH CANCEL
+        wheel.addEventListener('touchcancel', () => {
+            this.mobileControls.isDragging = false;
+            wheel.style.cursor = 'grab';
+            this.returnSteeringToCenter();
         });
     }
     
-    // ⭐ GÁZ/FÉK VEZÉRLÉS BEÁLLÍTÁSA
-    setupGasBrakeControls() {
-        const gasZone = this.mobileControls.gasZone;
+    // ⭐ KORMÁNY VISSZATÉRÍTÉSE KÖZÉPRE
+    returnSteeringToCenter() {
+        const returnSpeed = 0.1;
         
-        gasZone.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            const rect = gasZone.getBoundingClientRect();
-            const touchY = touch.clientY - rect.top;
-            const zoneHeight = rect.height;
-            
-            if (touchY < zoneHeight / 2) {
-                // ⭐ FELSŐ FÉL - GÁZ
-                this.mobileControls.accelerating = true;
-                this.inputManager.keys['ArrowUp'] = true;
-                this.inputManager.keys['ArrowDown'] = false;
+        const returnAnimation = () => {
+            if (Math.abs(this.mobileControls.steeringAngle) > 1) {
+                this.mobileControls.steeringAngle *= (1 - returnSpeed);
+                this.mobileControls.steeringInput = this.mobileControls.steeringAngle / 45;
+                
+                this.mobileControls.steeringWheel.style.transform = `rotate(${this.mobileControls.steeringAngle}deg)`;
+                
+                // ⭐ INPUT MANAGER FRISSÍTÉSE
+                this.inputManager.keys['ArrowLeft'] = this.mobileControls.steeringInput < -0.1;
+                this.inputManager.keys['ArrowRight'] = this.mobileControls.steeringInput > 0.1;
+                
+                requestAnimationFrame(returnAnimation);
             } else {
-                // ⭐ ALSÓ FÉL - FÉK
-                this.mobileControls.braking = true;
-                this.inputManager.keys['ArrowDown'] = true;
-                this.inputManager.keys['ArrowUp'] = false;
+                this.mobileControls.steeringAngle = 0;
+                this.mobileControls.steeringInput = 0;
+                this.mobileControls.steeringWheel.style.transform = 'rotate(0deg)';
+                this.inputManager.keys['ArrowLeft'] = false;
+                this.inputManager.keys['ArrowRight'] = false;
             }
+        };
+        
+        returnAnimation();
+    }
+    
+    // ⭐ GOMB ESEMÉNYEK
+    setupButtonEvents() {
+        // ⭐ GÁZ GOMB
+        this.mobileControls.gasButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.mobileControls.accelerating = true;
+            this.inputManager.keys['ArrowUp'] = true;
+            this.mobileControls.gasButton.style.transform = 'scale(0.95)';
+            this.mobileControls.gasButton.style.background = 'linear-gradient(145deg, #00CC00, #00AA00)';
         });
         
-        gasZone.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            const rect = gasZone.getBoundingClientRect();
-            const touchY = touch.clientY - rect.top;
-            const zoneHeight = rect.height;
-            
-            // ⭐ DINAMIKUS VÁLTÁS GÁZ ÉS FÉK KÖZÖTT
-            if (touchY < zoneHeight / 2) {
-                if (!this.mobileControls.accelerating) {
-                    this.mobileControls.accelerating = true;
-                    this.mobileControls.braking = false;
-                    this.inputManager.keys['ArrowUp'] = true;
-                    this.inputManager.keys['ArrowDown'] = false;
-                }
-            } else {
-                if (!this.mobileControls.braking) {
-                    this.mobileControls.braking = true;
-                    this.mobileControls.accelerating = false;
-                    this.inputManager.keys['ArrowDown'] = true;
-                    this.inputManager.keys['ArrowUp'] = false;
-                }
-            }
-        });
-        
-        gasZone.addEventListener('touchend', () => {
+        this.mobileControls.gasButton.addEventListener('touchend', () => {
             this.mobileControls.accelerating = false;
-            this.mobileControls.braking = false;
             this.inputManager.keys['ArrowUp'] = false;
-            this.inputManager.keys['ArrowDown'] = false;
+            this.mobileControls.gasButton.style.transform = 'scale(1)';
+            this.mobileControls.gasButton.style.background = 'linear-gradient(145deg, #00AA00, #008800)';
         });
-    }
-    
-    // ⭐ NITRO VEZÉRLÉS BEÁLLÍTÁSA
-    setupNitroControls() {
-        const nitroZone = this.mobileControls.nitroZone;
         
-        nitroZone.addEventListener('touchstart', (e) => {
+        // ⭐ FÉK GOMB
+        this.mobileControls.brakeButton.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.mobileControls.braking = true;
+            this.inputManager.keys['ArrowDown'] = true;
+            this.mobileControls.brakeButton.style.transform = 'scale(0.95)';
+            this.mobileControls.brakeButton.style.background = 'linear-gradient(145deg, #CC0000, #AA0000)';
+        });
+        
+        this.mobileControls.brakeButton.addEventListener('touchend', () => {
+            this.mobileControls.braking = false;
+            this.inputManager.keys['ArrowDown'] = false;
+            this.mobileControls.brakeButton.style.transform = 'scale(1)';
+            this.mobileControls.brakeButton.style.background = 'linear-gradient(145deg, #AA0000, #880000)';
+        });
+        
+        // ⭐ NITRO GOMB
+        this.mobileControls.nitroButton.addEventListener('touchstart', (e) => {
             e.preventDefault();
             this.mobileControls.nitro = true;
             this.inputManager.keys['Space'] = true;
-            nitroZone.style.background = 'linear-gradient(45deg, #FF6666, #FF8888)';
-            nitroZone.style.transform = 'translateX(-50%) scale(0.95)';
+            this.mobileControls.nitroButton.style.transform = 'scale(0.95)';
+            this.mobileControls.nitroButton.style.background = 'linear-gradient(145deg, #FF6666, #FF8888)';
         });
         
-        nitroZone.addEventListener('touchend', () => {
+        this.mobileControls.nitroButton.addEventListener('touchend', () => {
             this.mobileControls.nitro = false;
             this.inputManager.keys['Space'] = false;
-            nitroZone.style.background = 'linear-gradient(45deg, #FF4444, #FF6666)';
-            nitroZone.style.transform = 'translateX(-50%) scale(1)';
+            this.mobileControls.nitroButton.style.transform = 'scale(1)';
+            this.mobileControls.nitroButton.style.background = 'linear-gradient(145deg, #FF4444, #FF6666)';
         });
-    }
-    
-    // ⭐ MOBIL VEZÉRLÉS VISSZAÁLLÍTÁSA
-    resetMobileControls() {
-        this.mobileControls.steering = 0;
-        this.mobileControls.accelerating = false;
-        this.mobileControls.braking = false;
-        this.mobileControls.nitro = false;
-        
-        // ⭐ INPUT MANAGER TISZTÍTÁSA
-        this.inputManager.keys['ArrowLeft'] = false;
-        this.inputManager.keys['ArrowRight'] = false;
-        this.inputManager.keys['ArrowUp'] = false;
-        this.inputManager.keys['ArrowDown'] = false;
-        this.inputManager.keys['Space'] = false;
-        
-        // ⭐ VIZUÁLIS VISSZAJELZÉS VISSZAÁLLÍTÁSA
-        if (this.mobileControls.steeringZone) {
-            this.mobileControls.steeringZone.style.background = 'linear-gradient(45deg, rgba(0,100,200,0.3), rgba(0,150,255,0.2))';
-        }
-        
-        if (this.mobileControls.nitroZone) {
-            this.mobileControls.nitroZone.style.background = 'linear-gradient(45deg, #FF4444, #FF6666)';
-            this.mobileControls.nitroZone.style.transform = 'translateX(-50%) scale(1)';
-        }
-        
-        // ⭐ RESTART TÁMOGATÁS
-        if (this.gameEngine.game.finished) {
-            this.inputManager.keys['Enter'] = true;
-            setTimeout(() => {
-                this.inputManager.keys['Enter'] = false;
-            }, 100);
-        }
     }
     
     async simulateLoading() {
